@@ -38,8 +38,8 @@ load_dotenv()
 ICECAT_API_KEY = st.secrets["ICECAT_API_KEY"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
-images_zip_path = os.path.join(output_base_dir, "all_images.zip")
-images_csv_path = os.path.join(output_base_dir, "structured_images.csv")
+images_zip_path = os.path.join(output_dir, "all_images.zip")
+images_csv_path = os.path.join(output_dir, "structured_images.csv")
 image_data = []
 
 languages = {
@@ -417,10 +417,7 @@ def process_file(file):
                     "baseline": ai_data.get("baseline", ""),
                     "description": ai_data.get("description", ""),
                     "features": ai_data.get("features", ""),
-                    "weight": ai_data.get("weight", ""),
-                    "depth": ai_data.get("depth", ""),
-                    "height": ai_data.get("height", ""),
-                    "width": ai_data.get("width", "")
+                    "visibility": 4,
                 }
                 writers[country]["openai"].writerow(openai_row)
 
