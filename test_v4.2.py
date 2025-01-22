@@ -79,7 +79,7 @@ fieldnames_standard = ["GTIN", "PanNumber", "Brand", "sku", "store_id", "od_line
 writers = {}
 unique_skus = set()
 attribute_writers = {}
-consolidated_file_path = os.path.join(output_base_dir, f"{today}_consolidated_product_list.csv")
+consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product_list.csv")
 
 
 def fetch_product_data(row):
