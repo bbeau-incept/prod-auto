@@ -22,8 +22,8 @@ os.makedirs(attribute_base_dir, exist_ok=True)
 
 load_dotenv()
 
-ICECAT_API_KEY = os.getenv("ICECAT_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ICECAT_API_KEY = st.secrets["ICECAT_API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 images_zip_path = os.path.join(output_base_dir, "all_images.zip")
 images_csv_path = os.path.join(output_base_dir, "structured_images.csv")
