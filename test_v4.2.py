@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-os.system('pip install openai')
 import requests
 import csv
 import json
