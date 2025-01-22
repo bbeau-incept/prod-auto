@@ -11,6 +11,7 @@ from openai import OpenAI
 from PIL import Image, ImageOps
 from io import BytesIO
 import zipfile
+from dotenv import load_dotenv
 
 # Initialisation
 today = date.today().isoformat()
@@ -18,6 +19,11 @@ output_base_dir = "output_folder"
 os.makedirs(output_base_dir, exist_ok=True)
 attribute_base_dir = os.path.join(output_base_dir, "attributes")
 os.makedirs(attribute_base_dir, exist_ok=True)
+
+load_dotenv()
+
+ICECAT_API_KEY = os.getenv("ICECAT_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 images_zip_path = os.path.join(output_base_dir, "all_images.zip")
 images_csv_path = os.path.join(output_base_dir, "structured_images.csv")
@@ -65,7 +71,7 @@ consolidated_file_path = os.path.join(output_base_dir, f"{today}_consolidated_pr
 
 def fetch_product_data(row):
     """Fetch product data from Icecat API."""
-    icecat_key = "uJGRw0rTnRMc9pgnm3kWGfyC4qfz0y8T"
+    icecat_key = ICECAT_API_KEY
     url = f"https://live.icecat.biz/api?UserName=Patricel&lang={languages[row['Store']]}&Brand={row['Brand']}&ProductCode={row['PanNumber']}&app_key={icecat_key}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -114,7 +120,7 @@ Return a JSON with the following fields: baseline, description, features, weight
 Return a JSON with the following fields: name, baseline, description, features, weight, depth, height, and width.
 If you encounter any problem, return an empty JSON.
 """
-    openai_key = os.getenv("OPENAI_API_KEY", "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")
+    openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY )
     if not openai_key:
         st.error("Clé API OpenAI non configurée.")
         return None
