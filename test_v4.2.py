@@ -13,11 +13,24 @@ from io import BytesIO
 import zipfile
 from dotenv import load_dotenv
 
+
+def get_output_folder(base_name):
+    today_date = date.today().isoformat()
+    version = 1
+
+    while True:
+        folder_name = f"{base_name}_{today_date}_{version}"
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name, exist_ok=True)
+            return folder_name
+        version += 1
+        
+        
 # Initialisation
 today = date.today().isoformat()
 output_base_dir = "output_folder"
-os.makedirs(output_base_dir, exist_ok=True)
-attribute_base_dir = os.path.join(output_base_dir, "attributes")
+output_dir = get_output_folder(output_base_dir)
+attribute_base_dir = os.path.join(output_dir, "attributes")
 os.makedirs(attribute_base_dir, exist_ok=True)
 
 load_dotenv()
@@ -43,7 +56,7 @@ fieldnames_price = ["sku", "website_id", "price", "special_price"]
 fieldnames_status = ["sku", "store_id", "status"]
 fieldnames_missing_content = ["sku", "onedirect_ref_fournisseur", "onedirect_ean", "onedirect_warranty_time", "store_id"]
 fieldnames_processed = ["sku", "product name", "Brand", "PanNumber", "Store", "Price", "special_price", "attribut_set"]
-fieldnames_openai = ["sku", "name", "baseline", "description", "features", "weight", "depth", "height", "width"]
+fieldnames_openai = ["sku", "name", "baseline", "description", "features", "visibility"]
 fieldnames_consolidated = ["sku", "ean", "PanNumber", "Brand", "attribute_set_code"] + [f"img.{i}" for i in range(1, 31)]
 
 # Fieldnames for attributes
@@ -172,60 +185,62 @@ def validate_image_columns(df):
         return False
     return True
 
-def process_file(file):
-    """Process the uploaded CSV file and generate outputs."""
-    df = pd.read_csv(file)
-    st.write("Fichier chargé :")
-    st.write(df.head())
+def get_attribute_writer(attribute_dir, attribute_file_path, fieldnames):
+    """Create a writer for an attribute CSV if not already created."""
+    if attribute_file_path not in attribute_writers:
+        file = open(attribute_file_path, "w", newline='', encoding='utf-8')
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        attribute_writers[attribute_file_path] = {"writer": writer, "file": file}
+    return attribute_writers[attribute_file_path]["writer"]
 
-    # Open consolidated file
-    with open(consolidated_file_path, "w", newline='', encoding='utf-8') as consolidated_file:
-        consolidated_writer = csv.DictWriter(consolidated_file, fieldnames=fieldnames_consolidated)
-        consolidated_writer.writeheader()
 
-        for index, row in df.iterrows():
-            # Fetch data from Icecat API
-            api_data = fetch_product_data(row)
-            if not api_data:
-                continue
+def process_attributes(row, gtin, country):
+    """Process and write attribute data for a specific row."""
+    attribut_set = row.get("attribut_set")
+    if not attribut_set:
+        return
 
-            url = f"https://live.icecat.biz/api?lang={languages[row['Store']]}&Brand={row['Brand']}&ProductCode={row['PanNumber']}"
-            ai_data = generate_openai_content(api_data, row, url)
-            if not ai_data:
-                continue
+    attribute_dirs = {
+        "Headsets": ("Headsets", fieldnames_headsets),
+        "Walkie Talkies": ("Walkie Talkies", fieldnames_walkie),
+        "Conference - Video": ("Conference Video", fieldnames_video),
+        "Conference - Audio": ("Conference Audio", fieldnames_audio),
+        "Screens": ("Screens", fieldnames_screens),
+        "Phone - Mobile": ("Mobile", fieldnames_mobile),
+        "Phone - corded": ("Corded", fieldnames_corded),
+        "Cameras - Webcam": ("Camera", fieldnames_camera),
+        "Phone - Cordless": ("Cordless", fieldnames_cordless),
+        "Tablets": ("Tablet", fieldnames_tablet),
+        "Content Sharing": ("Content Sharing", fieldnames_content_sharing),
+        "Accessory": ("Accessory", fieldnames_accessory),
+        "Network": ("Network", fieldnames_network),
+        "Standard": ("Standard", fieldnames_standard),
+    }
 
-            country = str(row['Store'])  # Convertir en chaîne
-            country_dir = os.path.join(output_base_dir, country)
-            os.makedirs(country_dir, exist_ok=True)
+    if attribut_set in attribute_dirs:
+        sub_dir, f_names = attribute_dirs[attribut_set]
+        dir_path = os.path.join(attribute_base_dir, sub_dir)
+        os.makedirs(dir_path, exist_ok=True)
+        file_path = os.path.join(dir_path, f"{today}_{sub_dir.replace(' ', '_').lower()}_{country}.csv")
+        writer = get_attribute_writer(dir_path, file_path, f_names)
 
-            # Extract data for missing content
-            gtin_list = api_data["data"]["GeneralInfo"].get("GTIN", [])
-            gtin = gtin_list[0] if gtin_list else ""
+        attribute_row = {
+            "GTIN": gtin,
+            "PanNumber": row["PanNumber"],
+            "Brand": row["Brand"],
+            "sku": row["sku"],
+            "store_id": row["Store"]
+        }
+        # If needed, fill in other attribute fields here before writing
+        writer.writerow(attribute_row)
 
-            # Process attributes
-            process_attributes(row, gtin, country)
 
-            # Consolidate product list
-            sku = row["sku"]
-            if sku not in unique_skus:
-                images = extract_images(api_data["data"])
-                consolidated_row = {
-                    "sku": sku,
-                    "ean": gtin,
-                    "PanNumber": row["PanNumber"],
-                    "Brand": row["Brand"],
-                    "attribute_set_code": row["attribut_set"]
-                }
+def close_attribute_writers():
+    """Close all attribute writer files."""
+    for file_info in attribute_writers.values():
+        file_info["file"].close()
 
-                for i in range(1, 31):
-                    img_field = f"img.{i}"
-                    consolidated_row[img_field] = images[i - 1] if i - 1 < len(images) else ""
-
-                consolidated_writer.writerow(consolidated_row)
-                unique_skus.add(sku)
-
-    # Traitez les images en utilisant le fichier consolidé
-    process_images(pd.read_csv(consolidated_file_path))
 
 def process_images(df):
     """Télécharge, traite et compresse les images dans un fichier ZIP."""
@@ -277,84 +292,182 @@ def process_images(df):
 
     # Génère un CSV avec les chemins d'images
     pd.DataFrame(image_data).to_csv(images_csv_path, index=False)
+    
+    
+def process_file(file):
+    """Process the uploaded CSV file and generate outputs."""
+    df = pd.read_csv(file)
+    st.write("Fichier chargé :")
+    st.write(df.head())
+
+    # Open consolidated file
+    with open(consolidated_file_path, "w", newline='', encoding='utf-8') as consolidated_file:
+        consolidated_writer = csv.DictWriter(consolidated_file, fieldnames=fieldnames_consolidated)
+        consolidated_writer.writeheader()
+
+        for index, row in df.iterrows():
+            # Fetch data from Icecat API
+            api_data = fetch_product_data(row)
+            if not api_data:
+                continue
+
+            url = (
+                f"https://live.icecat.biz/api?lang={languages[row['Store']]}"
+                f"&Brand={row['Brand']}&ProductCode={row['PanNumber']}"
+            )
+            ai_data = generate_openai_content(api_data, row, url)
+            if not ai_data:
+                continue
+
+            country = str(row['Store'])  # Convertir en chaîne
+            country_dir = os.path.join(output_dir, country)
+            os.makedirs(country_dir, exist_ok=True)
+
+            if country not in writers:
+                # Create files for the country
+                missing_content_file = open(
+                    os.path.join(country_dir, f"{today}_missing_content_{country}.csv"),
+                    "w", newline='', encoding='utf-8'
+                )
+                status_file = open(
+                    os.path.join(country_dir, f"{today}_status_{country}.csv"),
+                    "w", newline='', encoding='utf-8'
+                )
+                price_file = open(
+                    os.path.join(country_dir, f"{today}_price_{country}.csv"),
+                    "w", newline='', encoding='utf-8'
+                )
+                processed_file = open(
+                    os.path.join(country_dir, f"{today}_processed_{country}.csv"),
+                    "w", newline='', encoding='utf-8'
+                )
+                openai_file = open(
+                    os.path.join(country_dir, f"{today}_openai_content_{country}.csv"),
+                    "w", newline='', encoding='utf-8'
+                )
+
+                # Create writers
+                missing_content_writer = csv.DictWriter(missing_content_file, fieldnames=fieldnames_missing_content)
+                status_writer = csv.DictWriter(status_file, fieldnames=fieldnames_status)
+                price_writer = csv.DictWriter(price_file, fieldnames=fieldnames_price)
+                processed_writer = csv.DictWriter(processed_file, fieldnames=fieldnames_processed)
+                openai_writer = csv.DictWriter(openai_file, fieldnames=fieldnames_openai)
+
+                # Write headers
+                missing_content_writer.writeheader()
+                status_writer.writeheader()
+                price_writer.writeheader()
+                processed_writer.writeheader()
+                openai_writer.writeheader()
+
+                writers[country] = {
+                    "missing": missing_content_writer,
+                    "status": status_writer,
+                    "price": price_writer,
+                    "processed": processed_writer,
+                    "openai": openai_writer,
+                    "files": [missing_content_file, status_file, price_file, processed_file, openai_file]
+                }
+
+            # Extract GTIN
+            gtin_list = api_data["data"]["GeneralInfo"].get("GTIN", [])
+            gtin = gtin_list[0] if gtin_list else ""
+
+            # Data for missing content
+            missing_content_row = {
+                "sku": row["sku"],
+                "onedirect_ref_fournisseur": row.get("PanNumber", ""),
+                "onedirect_ean": gtin,
+                "onedirect_warranty_time": row.get("onedirect_warranty_time", ""),
+                "store_id": row["Store"]
+            }
+            writers[country]["missing"].writerow(missing_content_row)
+
+            # Write status and price information
+            writers[country]["status"].writerow({
+                "sku": row["sku"],
+                "store_id": row["Store"],
+                "status": 2
+            })
+            writers[country]["price"].writerow({
+                "sku": row["sku"],
+                "website_id": row["Store"],
+                "price": row.get("Price"),
+                "special_price": row.get("special_price")
+            })
+
+            # Write processed file information
+            processed_row = {
+                "sku": row["sku"],
+                "product name": row["product name"],
+                "Brand": row["Brand"],
+                "PanNumber": row["PanNumber"],
+                "Store": row["Store"],
+                "Price": row["Price"],
+                "special_price": row["special_price"],
+                "attribut_set": row["attribut_set"]
+            }
+            writers[country]["processed"].writerow(processed_row)
+
+            # Write OpenAI content file information
+            if ai_data:
+                openai_row = {
+                    "sku": row["sku"],
+                    "name": ai_data.get("name", ""),
+                    "baseline": ai_data.get("baseline", ""),
+                    "description": ai_data.get("description", ""),
+                    "features": ai_data.get("features", ""),
+                    "weight": ai_data.get("weight", ""),
+                    "depth": ai_data.get("depth", ""),
+                    "height": ai_data.get("height", ""),
+                    "width": ai_data.get("width", "")
+                }
+                writers[country]["openai"].writerow(openai_row)
+
+            # Consolidate product list
+            sku = row["sku"]
+            if sku not in unique_skus:
+                images = extract_images(api_data["data"])
+                consolidated_row = {
+                    "sku": sku,
+                    "ean": gtin,
+                    "PanNumber": row["PanNumber"],
+                    "Brand": row["Brand"],
+                    "attribute_set_code": row["attribut_set"]
+                }
+
+                for i in range(1, 31):
+                    img_field = f"img.{i}"
+                    consolidated_row[img_field] = images[i - 1] if i - 1 < len(images) else ""
+
+                consolidated_writer.writerow(consolidated_row)
+                unique_skus.add(sku)
+
+            # Finally, process the attributes for this row
+            process_attributes(row, gtin, country)
+
+    # Now handle all images together from the consolidated file
+    process_images(pd.read_csv(consolidated_file_path))
 
 
-def get_attribute_writer(attribute_dir, attribute_file_path, fieldnames):
-    """Create a writer for an attribute CSV if not already created."""
-    if attribute_file_path not in attribute_writers:
-        file = open(attribute_file_path, "w", newline='', encoding='utf-8')
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        attribute_writers[attribute_file_path] = {"writer": writer, "file": file}
-    return attribute_writers[attribute_file_path]["writer"]
-
-
-def process_attributes(row, gtin, country):
-    """Process and write attribute data for a specific row."""
-    attribut_set = row.get("attribut_set")
-    if not attribut_set:
-        return
-
-    attribute_dirs = {
-        "Headsets": ("Headsets", fieldnames_headsets),
-        "Walkie Talkies": ("Walkie Talkies", fieldnames_walkie),
-        "Conference - Video": ("Conference Video", fieldnames_video),
-        "Conference - Audio": ("Conference Audio", fieldnames_audio),
-        "Screens": ("Screens", fieldnames_screens),
-        "Phone - Mobile": ("Mobile", fieldnames_mobile),
-        "Phone - corded": ("Corded", fieldnames_corded),
-        "Cameras - Webcam": ("Camera", fieldnames_camera),
-        "Phone - Cordless": ("Cordless", fieldnames_cordless),
-        "Tablets": ("Tablet", fieldnames_tablet),
-        "Content Sharing": ("Content Sharing", fieldnames_content_sharing),
-        "Accessory": ("Accessory", fieldnames_accessory),
-        "Network": ("Network", fieldnames_network),
-        "Standard": ("Standard", fieldnames_standard),
-    }
-
-    if attribut_set in attribute_dirs:
-        sub_dir, fieldnames = attribute_dirs[attribut_set]
-        dir_path = os.path.join(attribute_base_dir, sub_dir)
-        os.makedirs(dir_path, exist_ok=True)
-        file_path = os.path.join(dir_path, f"{today}_{sub_dir.replace(' ', '_').lower()}_{country}.csv")
-        writer = get_attribute_writer(dir_path, file_path, fieldnames)
-
-        attribute_row = {
-            "GTIN": gtin,
-            "PanNumber": row["PanNumber"],
-            "Brand": row["Brand"],
-            "sku": row["sku"],
-            "store_id": row["Store"]
-        }
-        writer.writerow(attribute_row)
-        
-
-
-        
-def close_attribute_writers():
-    """Close all attribute writer files."""
-    for file_info in attribute_writers.values():
-        file_info["file"].close()
 
 
 def download_zip():
     """Create and download a ZIP file of the output directory."""
-    # Assurez-vous que tous les fichiers d'attributs sont fermés
+    # Make sure all attribute CSV files are closed
     close_attribute_writers()
 
-    zip_path = f"{output_base_dir}.zip"
-    shutil.make_archive(output_base_dir, 'zip', output_base_dir)
-    
+    zip_path = f"{output_dir}.zip"
+    shutil.make_archive(output_dir, 'zip', output_dir)
 
     with open(zip_path, "rb") as zip_file:
         st.download_button(
             label="Télécharger les fichiers de sortie (ZIP)",
             data=zip_file,
-            file_name=f"{output_base_dir}.zip",
+            file_name=f"{output_dir}.zip",
             mime="application/zip"
         )
 
-        
 
 def main():
     st.title("Traitement avancé des produits avec Streamlit")
@@ -364,6 +477,7 @@ def main():
     if uploaded_file is not None:
         process_file(uploaded_file)
 
+        # Close all "writers" that were opened
         for writer_info in writers.values():
             for file in writer_info["files"]:
                 file.close()
