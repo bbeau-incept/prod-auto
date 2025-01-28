@@ -84,12 +84,8 @@ consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product
 
 def fetch_product_data(row):
     """Fetch product data from Icecat using API Token (and optional Content Token)."""
-    # Récupération du token depuis st.secrets ou dotenv
-    # st.secrets["ICECAT_API_KEY"] = "votre_api_token"
-    # st.secrets["ICECAT_CONTENT_TOKEN"] = "votre_content_token" (optionnel)
-
-    api_token = st.secrets["ICECAT_API_KEY"]
-    content_token = st.secrets.get("ICECAT_CONTENT_TOKEN", None)  # Optionnel
+    api_token = st.secrets["ICECAT_API_KEY"]   # Ou la variable qui contient votre token
+    content_token = st.secrets.get("ICECAT_CONTENT_TOKEN", None)
 
     url = "https://data.icecat.biz/xml_s3/xml_server3.cgi"
     params = {
@@ -98,19 +94,27 @@ def fetch_product_data(row):
         "prod_id": row["PanNumber"],
         "output": "json"
     }
-    
-    # Construire le header
     headers = {"Api-Token": api_token}
     if content_token:
         headers["Content-Token"] = content_token
 
+    # Appel de l'API
     response = requests.get(url, params=params, headers=headers)
-    
-    if response.status_code == 200:
-        return response.json()
-    else:
-        st.error(f"Erreur lors de la récupération des données pour {row['PanNumber']}: {response.status_code}")
-        return None
+
+    # ---- Début du bloc de debug ----
+    st.write("Response Status Code:", response.status_code)
+    st.write("Response Headers:", response.headers)
+    st.write("Response Text:", response.text)
+    # ---- Fin du bloc de debug ----
+
+    # Puis on essaye le parse JSON
+    try:
+        data = response.json()
+    except Exception as e:
+        st.error(f"Impossible de parser la réponse en JSON : {e}")
+        data = None
+
+    return data
 
 
 def clean_openai_response(content):
