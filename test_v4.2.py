@@ -83,10 +83,29 @@ consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product
 
 
 def fetch_product_data(row):
-    """Fetch product data from Icecat API."""
-    icecat_key = ICECAT_API_KEY
-    url = f"https://live.icecat.biz/api?UserName=Patricel&lang={languages[row['Store']]}&Brand={row['Brand']}&ProductCode={row['PanNumber']}&app_key={icecat_key}"
-    response = requests.get(url)
+    """Fetch product data from Icecat using API Token (and optional Content Token)."""
+    # Récupération du token depuis st.secrets ou dotenv
+    # st.secrets["ICECAT_API_KEY"] = "votre_api_token"
+    # st.secrets["ICECAT_CONTENT_TOKEN"] = "votre_content_token" (optionnel)
+
+    api_token = st.secrets["ICECAT_API_KEY"]
+    content_token = st.secrets.get("ICECAT_CONTENT_TOKEN", None)  # Optionnel
+
+    url = "https://data.icecat.biz/xml_s3/xml_server3.cgi"
+    params = {
+        "lang": languages[row['Store']],
+        "brand": row["Brand"],
+        "prod_id": row["PanNumber"],
+        "output": "json"
+    }
+    
+    # Construire le header
+    headers = {"Api-Token": api_token}
+    if content_token:
+        headers["Content-Token"] = content_token
+
+    response = requests.get(url, params=params, headers=headers)
+    
     if response.status_code == 200:
         return response.json()
     else:
