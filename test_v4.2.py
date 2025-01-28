@@ -90,7 +90,7 @@ def fetch_product_data(row):
     params = {
         "lang": languages[row['Store']],
         "prod_id": row["PanNumber"],
-        "brand": row["Brand"],
+        "vendor": row["Brand"],
         "output": "json"
     }
     
