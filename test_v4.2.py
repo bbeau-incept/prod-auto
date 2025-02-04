@@ -83,40 +83,30 @@ consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product
 
 
 def fetch_product_data(row):
-    # Si vous l’avez stocké dans st.secrets["ICECAT_API_TOKEN"]
-    api_token = st.secrets["ICECAT_API_TOKEN"]
+    """Fetch product data from Icecat API."""
+    # Récupération de la clé depuis Streamlit secrets
+    icecat_key = st.secrets["ICECAT_API_TOKEN"]
 
-    base_url = "https://data.icecat.biz/xml_s3/xml_server3.cgi"
-    params = {
-        "prod_id": row["PanNumber"],
-        "lang": languages[row['Store']],
-        "output": "productxml",
-        "vendor": row["Brand"]
-    }
-    
-    headers = {
-        # Important: respectez la casse
-        "Api-Token": api_token
-    }
+    # Construction de l'URL de l'API Icecat
+    url = (
+        "https://live.icecat.biz/api"
+        f"?UserName=Patricel"
+        f"&lang={languages[row['Store']]}"
+        f"&Brand={row['Brand']}"
+        f"&ProductCode={row['PanNumber']}"
+        f"&app_key={icecat_key}"
+    )
 
-    response = requests.get(base_url, params=params, headers=headers)
+    # Requête à l'API
+    response = requests.get(url)
 
-    st.write("URL called:", response.url)
-    st.write("Status Code:", response.status_code)
-    st.write("Response Headers:", response.headers)
-    st.write("Response Text:", response.text)
-
-    if response.status_code != 200:
-        st.error(f"Erreur HTTP {response.status_code}")
+    # Vérification du statut de la requête
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # Log ou gestion d’erreur 
+        st.warning(f"Erreur HTTP {response.status_code} lors de la récupération des données.")
         return None
-
-    try:
-        data = response.json()
-        return data
-    except Exception as e:
-        st.error(f"Impossible de parser la réponse JSON : {e}")
-        return None
-
 
 def clean_openai_response(content):
     """Clean the OpenAI response by removing code block markers."""
