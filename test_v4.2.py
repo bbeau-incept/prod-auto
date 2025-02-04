@@ -86,7 +86,9 @@ def fetch_product_data(row):
     """Fetch product data from Icecat API."""
     # Récupération de la clé depuis Streamlit secrets
     icecat_key = st.secrets["ICECAT_API_TOKEN"]
-
+    headers = {
+        "api-token": icecat_key
+    }
     # Construction de l'URL de l'API Icecat
     url = (
         "https://live.icecat.biz/api"
@@ -94,11 +96,10 @@ def fetch_product_data(row):
         f"&lang={languages[row['Store']]}"
         f"&Brand={row['Brand']}"
         f"&ProductCode={row['PanNumber']}"
-        f"&app_key={icecat_key}"
     )
 
     # Requête à l'API
-    response = requests.get(url)
+    response = requests.get(url, headers=headers)
 
     # Vérification du statut de la requête
     if response.status_code == 200:
