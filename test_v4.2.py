@@ -88,10 +88,10 @@ def fetch_product_data(row):
 
     base_url = "https://data.icecat.biz/xml_s3/xml_server3.cgi"
     params = {
-        "lang": languages[row['Store']],
         "prod_id": row["PanNumber"],
-        "vendor": row["Brand"],
-        "output": "json"
+        "lang": languages[row['Store']],
+        "output": "json",
+        "vendor": row["Brand"]
     }
     
     headers = {
