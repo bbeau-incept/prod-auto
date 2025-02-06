@@ -56,7 +56,7 @@ fieldnames_price = ["sku", "website_id", "price", "special_price"]
 fieldnames_status = ["sku", "store_id", "status"]
 fieldnames_missing_content = ["sku", "onedirect_ref_fournisseur", "onedirect_ean", "onedirect_warranty_time", "store_id"]
 fieldnames_processed = ["sku", "product name", "Brand", "PanNumber", "Store", "Price", "special_price", "attribut_set"]
-fieldnames_openai = ["sku", "name", "baseline", "description", "features", "visibility"]
+fieldnames_openai = ["sku", "store_id","name", "onedirect_baseline", "description", "short_description", "visibility"]
 fieldnames_consolidated = ["sku", "ean", "PanNumber", "Brand", "attribute_set_code"] + [f"img.{i}" for i in range(1, 31)]
 
 # Fieldnames for attributes
@@ -429,9 +429,10 @@ def process_file(file):
                 openai_row = {
                     "sku": row["sku"],
                     "name": ai_data.get("name", ""),
-                    "baseline": ai_data.get("baseline", ""),
+                    "store_id": row["store_id"],
+                    "onedirect_baseline": ai_data.get("baseline", ""),
                     "description": ai_data.get("description", ""),
-                    "features": ai_data.get("features", ""),
+                    "short_description": ai_data.get("features", ""),
                     "visibility": 4,
                 }
                 writers[country]["openai"].writerow(openai_row)
