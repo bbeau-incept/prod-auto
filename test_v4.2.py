@@ -429,7 +429,7 @@ def process_file(file):
                 openai_row = {
                     "sku": row["sku"],
                     "name": ai_data.get("name", ""),
-                    "store_id": row["store_id"],
+                    "store_id": row["Store"],
                     "onedirect_baseline": ai_data.get("baseline", ""),
                     "description": ai_data.get("description", ""),
                     "short_description": ai_data.get("features", ""),
