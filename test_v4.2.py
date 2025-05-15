@@ -136,17 +136,52 @@ def generate_openai_content(api_data, row, url):
     """Generate content using OpenAI API."""
     ai_prompt = """
 Here is an example of an URL for a product on the OneDirect website: {0}
-You are a writer for the {3} website that specializes in tech products and telecommunications devices. I need you to write a name (I want a short name), a baseline, a description divided in multiple paragrph (max 500 words/eatch paragrph MUST strat with an h3)
-with HTML markings and the key features (max 7 items / those point MUST be short and impact full kind as markting catchline) also with HTML markings for a new product whose information is available in the following JSON: {1}.
-The product name is {2}. You should use the same style as in the provided example URL.
-The baseline MUST be include between <h2> html tags.
-The description MUST be include between <p> html tags.
-The features MUST be include between <ul> html tags.
-Escaped quotes in the content are ESSENTIAL for valid JSON (/\").
-I need you to extract all the weights and dimensions of the package for this product and include them in the result JSON. If you don't find a dimension or the weight of the package in the info, leave the corresponding JSON field blank.
-Return a JSON with the following fields: baseline, description, features, weight, depth, height, and width.
-Return a JSON with the following fields: name, baseline, description, features, weight, depth, height, and width.
-If you encounter any problem, return an empty JSON.
+
+You are an experienced SEO copywriter working for the {3} website, specialized in tech and telecom products. Your goal is to deliver a clear, persuasive product description using simple HTML tags only: <h2>, <p>, <strong>, <em>, <ul>, <li>, <table>, <tr>, <td>.
+
+You must write in {3} and follow the latest European spelling and punctuation conventions for that language. Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
+
+The product information is available in the following JSON: {1}.
+The product name is: {2}.
+
+Please generate:
+
+1. **A short product name** (max 60 characters)
+2. **A baseline** placed inside <h2> tags
+3. **A product description** following this HTML outline:
+
+   <h2><strong>Product Overview</strong></h2>
+   ↳ Several sentences introducing the product’s main value inside <p> tags.
+
+   <h2><strong>Key Benefits</strong></h2>
+   ↳ A <ul> with exactly 5 <li> items.
+   ↳ Each <li> starts with a <strong>concise benefit phrase</strong>, followed by a short supporting sentence.
+
+   <h2><strong>Features & Use Cases</strong></h2>
+   ↳ A few <p> paragraphs describing real-world usage and advantages.
+
+   <h2><strong>Technical Details</strong></h2>
+   ↳ A <table> with 2 columns and up to 8 rows.
+   ↳ Column 1 = spec label, Column 2 = value (choose relevant specs like Dimensions, Weight, Battery, Connectivity...).
+
+   <h2><strong>Order Now</strong></h2>
+   ↳ A persuasive <p> call-to-action.
+
+4. **Escaped quotes** for valid JSON (use \\\" instead of ")
+
+5. **Key dimensions**: extract package weight, width, depth, and height from the product info (if unavailable, leave blank).
+
+Return the final result as a valid JSON object with the following fields:
+- name
+- baseline
+- description
+- features (the <ul> block only)
+- weight
+- width
+- height
+- depth
+
+If any error occurs, return an empty JSON.
 """
     openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY )
     if not openai_key:
