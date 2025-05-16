@@ -112,18 +112,15 @@ def fetch_product_data(row):
 
 def clean_openai_response(content):
     """Nettoie la réponse OpenAI pour éviter les erreurs JSON."""
-    content = content.strip()
 
-    # Supprime les balises de bloc de code Markdown
-    content = content.replace("```json", "").replace("```", "")
+    # Supprime les blocs Markdown type ```json ... ```
+    content = content.strip().replace("```json", "").replace("```", "")
 
-    # Échappe les guillemets non protégés dans les parenthèses du type (21.5")
-    content = re.sub(r'\((\d{1,3}\.\d{1,3})"\)', r'(\1\\")', content)  # (21.5") → (21.5\")
+    # Échappe uniquement les guillemets non protégés à l'intérieur de parenthèses, exemple : (21.5")
+    # ⚠️ Important : on protège seulement s'il y a un guillemet AVANT la parenthèse fermante
+    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\\"\2)', content)
 
-    # Variante avec virgule (ex: 54,6 cm (21.5")) → protège bien aussi
-    content = re.sub(r'\((\d{1,3}[.,]\d{1,3})"\)', r'(\1\\")', content)
-
-    # Enlève la virgule finale si elle casse le JSON
+    # Optionnel : supprime la virgule finale si oubliée
     if content.endswith(","):
         content = content[:-1]
 
