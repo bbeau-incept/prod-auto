@@ -346,6 +346,9 @@ def process_images(df):
     
 def process_file(file):
     """Process the uploaded CSV file and generate outputs."""
+    total = len(df)
+    progress_bar = st.progress(0)
+    st.info(f"🔢 Nombre de produits à traiter : {total}")
     df = pd.read_csv(file)
     st.write("Fichier chargé :")
     st.write(df.head())
@@ -357,17 +360,28 @@ def process_file(file):
 
         for index, row in df.iterrows():
             # Fetch data from Icecat API
-            api_data = fetch_product_data(row)
-            if not api_data:
-                continue
+            st.write(f"🔄 Traitement du produit {index+1}/{total} : SKU {row['sku']}")
+            with st.status(f"🧊 Appel API Icecat pour {row['sku']}...", expanded=False) as status_icecat:
+                api_data = fetch_product_data(row)
+                if not api_data:
+                    st.warning(f"⚠️ Erreur Icecat pour {row['sku']}")
+                    status_icecat.update(label="❌ Icecat échoué", state="error")
+                    continue
+                else:
+                    status_icecat.update(label="✅ Icecat OK", state="complete")
 
             url = (
                 f"https://live.icecat.biz/api?lang={languages[row['Store']]}"
                 f"&Brand={row['Brand']}&ProductCode={row['PanNumber']}"
             )
-            ai_data = generate_openai_content(api_data, row, url)
-            if not ai_data:
-                continue
+            with st.status("🤖 Génération de contenu OpenAI...", expanded=False) as status_openai:
+                ai_data = generate_openai_content(api_data, row, url)
+                if not ai_data:
+                    st.warning(f"⚠️ OpenAI a échoué pour {row['sku']}")
+                    status_openai.update(label="❌ OpenAI échoué", state="error")
+                    continue
+                else:
+                    status_openai.update(label="✅ OpenAI OK", state="complete")
 
             country = str(row['Store'])  # Convertir en chaîne
             country_dir = os.path.join(output_dir, country)
@@ -493,7 +507,9 @@ def process_file(file):
 
             # Finally, process the attributes for this row
             process_attributes(row, gtin, country)
-
+    with st.status("📸 Traitement et compression des images...", expanded=False) as status_img:
+        process_images(pd.read_csv(consolidated_file_path))
+        status_img.update(label="✅ Images traitées et compressées", state="complete")
     # Now handle all images together from the consolidated file
     process_images(pd.read_csv(consolidated_file_path))
 
@@ -537,4 +553,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(st.balloons())
