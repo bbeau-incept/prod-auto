@@ -328,54 +328,63 @@ def close_attribute_writers():
 
 
 def process_images(df):
-    """Télécharge, traite et compresse les images dans un fichier ZIP."""
-    with zipfile.ZipFile(images_zip_path, 'w') as zipf:
-        for _, row in df.iterrows():
-            sku = row.get("sku")
-            additional_images = []
-            base_image = small_image = thumbnail_image = ""
+    """Télécharge, traite et compresse les images dans un fichier ZIP avec affichage de logs."""
+    st.info("📸 Début du traitement des images...")
 
-            for i in range(1, 7):
-                img_url = row.get(f"img.{i}")
+    total_rows = len(df)
+    progress_bar = st.progress(0)
+    current = 0
 
-                if pd.notna(img_url) and img_url:
-                    try:
-                        # Télécharge l'image
-                        response = requests.get(img_url, timeout=10)
-                        if response.status_code == 200:
-                            image = Image.open(BytesIO(response.content))
+    with st.status("📥 Téléchargement et traitement des images...", expanded=True) as status:
+        with zipfile.ZipFile(images_zip_path, 'w') as zipf:
+            for _, row in df.iterrows():
+                current += 1
+                sku = row.get("sku")
+                st.write(f"🔧 Traitement images pour SKU: `{sku}`")
 
-                            # Rend l'image carrée (800x800)
-                            image_square = ImageOps.pad(image, (800, 800), color="white", centering=(0.5, 0.5))
+                additional_images = []
+                base_image = small_image = thumbnail_image = ""
 
-                            # Nomme l'image en fonction du SKU et de l'index
-                            img_filename = f"{sku}_{i}.jpg"
+                for i in range(1, 7):
+                    img_url = row.get(f"img.{i}")
 
-                            # Ajoute l'image au fichier ZIP
-                            with BytesIO() as img_buffer:
-                                image_square.save(img_buffer, format="JPEG")
-                                zipf.writestr(img_filename, img_buffer.getvalue())
+                    if pd.notna(img_url) and img_url:
+                        try:
+                            st.write(f"➡️ Téléchargement de l’image {i}: {img_url}")
+                            response = requests.get(img_url, timeout=10)
+                            if response.status_code == 200:
+                                image = Image.open(BytesIO(response.content))
+                                image_square = ImageOps.pad(image, (800, 800), color="white", centering=(0.5, 0.5))
+                                img_filename = f"{sku}_{i}.jpg"
 
-                            # Assigne les noms des images aux colonnes correspondantes
-                            if i == 1:
-                                base_image = img_filename
-                                small_image = img_filename
-                                thumbnail_image = img_filename
+                                with BytesIO() as img_buffer:
+                                    image_square.save(img_buffer, format="JPEG")
+                                    zipf.writestr(img_filename, img_buffer.getvalue())
+
+                                if i == 1:
+                                    base_image = img_filename
+                                    small_image = img_filename
+                                    thumbnail_image = img_filename
+                                else:
+                                    additional_images.append(img_filename)
                             else:
-                                additional_images.append(img_filename)
-                    except Exception as e:
-                        st.error(f"Erreur lors du traitement de l'image {img_url}: {e}")
+                                st.warning(f"⚠️ Échec du téléchargement (status {response.status_code}) : {img_url}")
+                        except Exception as e:
+                            st.error(f"❌ Erreur traitement image {img_url} : {e}")
 
-            # Ajoute les informations d'image au CSV
-            image_data.append({
-                "sku": sku,
-                "base_image": base_image,
-                "small_image": small_image,
-                "thumbnail_image": thumbnail_image,
-                "additional_images": ','.join(additional_images)
-            })
+                image_data.append({
+                    "sku": sku,
+                    "base_image": base_image,
+                    "small_image": small_image,
+                    "thumbnail_image": thumbnail_image,
+                    "additional_images": ','.join(additional_images)
+                })
 
-    # Génère un CSV avec les chemins d'images
+                # Mise à jour de la barre de progression
+                progress_bar.progress(current / total_rows)
+
+        st.success("✅ Toutes les images ont été traitées et compressées.")
+
     pd.DataFrame(image_data).to_csv(images_csv_path, index=False)
     
     
