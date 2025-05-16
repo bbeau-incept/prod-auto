@@ -386,7 +386,7 @@ def process_images(df):
 
     
     
-def process_file(file):
+def process_file(file, selected_outputs):
     """Process the uploaded CSV file and generate outputs."""
     df = pd.read_csv(file)
     total = len(df)
@@ -417,14 +417,15 @@ def process_file(file):
                 f"https://live.icecat.biz/api?lang={languages[row['Store']]}"
                 f"&Brand={row['Brand']}&ProductCode={row['PanNumber']}"
             )
-            with st.status("🤖 Génération de contenu OpenAI...", expanded=False) as status_openai:
-                ai_data = generate_openai_content(api_data, row, url)
-                if not ai_data:
-                    st.warning(f"⚠️ OpenAI a échoué pour {row['sku']}")
-                    status_openai.update(label="❌ OpenAI échoué", state="error")
-                    continue
-                else:
-                    status_openai.update(label="✅ OpenAI OK", state="complete")
+            if "OpenAI content" in selected_outputs:
+                with st.status("🤖 Génération de contenu OpenAI...", expanded=False) as status_openai:
+                    ai_data = generate_openai_content(api_data, row, url)
+                    if not ai_data:
+                        st.warning(f"⚠️ OpenAI a échoué pour {row['sku']}")
+                        status_openai.update(label="❌ OpenAI échoué", state="error")
+                        continue
+                    else:
+                        status_openai.update(label="✅ OpenAI OK", state="complete")
 
             country = str(row['Store'])  # Convertir en chaîne
             country_dir = os.path.join(output_dir, country)
@@ -488,7 +489,8 @@ def process_file(file):
                 "onedirect_warranty_time": row.get("onedirect_warranty_time", ""),
                 "store_id": row["Store"]
             }
-            writers[country]["missing"].writerow(missing_content_row)
+            if "Missing content" in selected_outputs:
+                writers[country]["missing"].writerow(missing_content_row)
 
             # Write status and price information
             writers[country]["status"].writerow({
@@ -549,10 +551,13 @@ def process_file(file):
                 unique_skus.add(sku)
 
             # Finally, process the attributes for this row
-            process_attributes(row, gtin, country)
-    with st.status("📸 Traitement et compression des images...", expanded=False) as status_img:
-        process_images(pd.read_csv(consolidated_file_path))
-        status_img.update(label="✅ Images traitées et compressées", state="complete")
+            if "Attributes" in selected_outputs:
+                process_attributes(row, gtin, country)
+    if "Images" in selected_outputs:
+
+        with st.status("📸 Traitement et compression des images...", expanded=False) as status_img:
+            process_images(pd.read_csv(consolidated_file_path))
+            status_img.update(label="✅ Images traitées et compressées", state="complete")
     # Now handle all images together from the consolidated file
 
 
@@ -579,20 +584,30 @@ def download_zip():
 def main():
     st.title("Traitement avancé des produits avec Streamlit")
 
-    uploaded_file = st.file_uploader("Chargez un fichier CSV", type="csv")
+    uploaded_file = st.file_uploader("📂 Chargez un fichier CSV de produits", type="csv")
 
     if uploaded_file is not None:
-        process_file(uploaded_file)
+        st.success("✅ Fichier chargé avec succès !")
 
-        # Close all "writers" that were opened
-        for writer_info in writers.values():
-            for file in writer_info["files"]:
-                file.close()
+        # Étape 1 – Choix des fichiers à générer
+        st.subheader("🗂️ Sélectionnez les fichiers à générer")
+        selected_outputs = st.multiselect(
+            "Que souhaitez-vous inclure dans les fichiers générés ?",
+            ["Missing content", "OpenAI content", "Price", "Processed", "Status", "Attributes", "Images"],
+            default=["Missing content", "OpenAI content", "Price", "Processed", "Status", "Attributes", "Images"]
+        )
 
-        st.success("Fichiers créés avec succès dans le dossier de sortie.")
+        # Bouton de lancement du traitement
+        if st.button("🚀 Lancer le traitement"):
+            process_file(uploaded_file, selected_outputs)
 
-        # Allow download of ZIP file
-        download_zip()
+            # Fermer les fichiers CSV restés ouverts
+            for writer_info in writers.values():
+                for file in writer_info["files"]:
+                    file.close()
+
+            st.success("✅ Traitement terminé. Fichiers générés avec succès.")
+            download_zip()
 
 
 if __name__ == "__main__":
