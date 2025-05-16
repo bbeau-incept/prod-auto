@@ -346,10 +346,10 @@ def process_images(df):
     
 def process_file(file):
     """Process the uploaded CSV file and generate outputs."""
+    df = pd.read_csv(file)
     total = len(df)
     progress_bar = st.progress(0)
     st.info(f"🔢 Nombre de produits à traiter : {total}")
-    df = pd.read_csv(file)
     st.write("Fichier chargé :")
     st.write(df.head())
 
@@ -361,6 +361,7 @@ def process_file(file):
         for index, row in df.iterrows():
             # Fetch data from Icecat API
             st.write(f"🔄 Traitement du produit {index+1}/{total} : SKU {row['sku']}")
+            progress_bar.progress((index + 1) / total)
             with st.status(f"🧊 Appel API Icecat pour {row['sku']}...", expanded=False) as status_icecat:
                 api_data = fetch_product_data(row)
                 if not api_data:
