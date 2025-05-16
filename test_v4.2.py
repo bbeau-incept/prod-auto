@@ -120,7 +120,7 @@ def clean_openai_response(content):
     def escape_quotes_in_values(match):
         value = match.group(0)
         # Ignore les lignes déjà échappées, sinon double échappement
-        return value.replace('"', '\\"')
+        return value.replace('"', '\"')
 
     # Cette regex cible les guillemets dans les valeurs des paires clé:valeur
     content = re.sub(r'(?<=": )(?!")(.*?)(?=",?\n)', lambda m: escape_quotes_in_values(m), content)
