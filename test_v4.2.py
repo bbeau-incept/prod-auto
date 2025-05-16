@@ -113,16 +113,20 @@ def fetch_product_data(row):
 def clean_openai_response(content):
     """Nettoie la réponse OpenAI pour éviter les erreurs JSON."""
 
-    # Supprime les blocs Markdown type ```json ... ```
+    # Supprime les blocs Markdown ```json ... ```
     content = content.strip().replace("```json", "").replace("```", "")
 
-    # Échappe uniquement les guillemets non protégés à l'intérieur de parenthèses, exemple : (21.5")
-    # ⚠️ Important : on protège seulement s'il y a un guillemet AVANT la parenthèse fermante
-    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\\"\2)', content)
+    # Échappe tous les guillemets non échappés à l'intérieur des chaînes
+    def escape_quotes_in_values(match):
+        value = match.group(0)
+        # Ignore les lignes déjà échappées, sinon double échappement
+        return value.replace('"', '\\"')
 
-    # Optionnel : supprime la virgule finale si oubliée
-    if content.endswith(","):
-        content = content[:-1]
+    # Cette regex cible les guillemets dans les valeurs des paires clé:valeur
+    content = re.sub(r'(?<=": )(?!")(.*?)(?=",?\n)', lambda m: escape_quotes_in_values(m), content)
+
+    # Corrige les parenthèses avec guillemets (21.5")
+    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\\"\2)', content)
 
     return content
 
