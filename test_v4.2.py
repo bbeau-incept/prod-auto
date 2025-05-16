@@ -556,7 +556,6 @@ def process_file(file):
         process_images(pd.read_csv(consolidated_file_path))
         status_img.update(label="✅ Images traitées et compressées", state="complete")
     # Now handle all images together from the consolidated file
-    process_images(pd.read_csv(consolidated_file_path))
 
 
 
