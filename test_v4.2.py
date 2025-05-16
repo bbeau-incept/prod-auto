@@ -110,12 +110,12 @@ def fetch_product_data(row):
         return None
 
 def clean_openai_response(content):
-    """Clean the OpenAI response by removing code block markers."""
-    if content.startswith("```json"):
-        content = content[7:]
-    if content.endswith("```"):
-        content = content[:-3]
-    return content.strip()
+    """Nettoie la réponse OpenAI pour éviter les erreurs de parsing JSON."""
+    content = content.strip()
+    content = content.replace("```json", "").replace("```", "")
+    if content.endswith(","):
+        content = content[:-1]
+    return content
 
 
 def extract_images(data):
@@ -212,15 +212,22 @@ If any error occurs, return an empty JSON.
 
         # Attempt to parse the response
         if response.choices and response.choices[0].message.content:
-            cleaned_content = clean_openai_response(response.choices[0].message.content)
-            return json.loads(cleaned_content)
+            raw_content = response.choices[0].message.content
+            cleaned_content = clean_openai_response(raw_content)
+
+            try:
+                return json.loads(cleaned_content)
+
+            except json.JSONDecodeError as json_err:
+                st.error(f"❌ Erreur de décode JSON : {json_err}")
+                st.text("🔍 Contenu brut retourné par OpenAI :")
+                st.code(raw_content, language="json")
+                st.text("🔧 Contenu nettoyé avant parsing :")
+                st.code(cleaned_content, language="json")
+                return None
         else:
             st.error("Réponse vide ou invalide reçue de l'API OpenAI.")
             return None
-
-    except json.JSONDecodeError as json_err:
-        st.error(f"Erreur de décode JSON : {str(json_err)}")
-        return None
 
     except Exception as e:
         st.error(f"Erreur avec OpenAI : {str(e)}")
