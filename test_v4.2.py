@@ -220,17 +220,30 @@ If any error occurs, return an empty JSON.
 
             except json.JSONDecodeError as json_err:
                 st.error(f"❌ Erreur de décode JSON : {json_err}")
+
                 st.text("🔍 Contenu brut retourné par OpenAI :")
                 st.code(raw_content, language="json")
+
                 st.text("🔧 Contenu nettoyé avant parsing :")
                 st.code(cleaned_content, language="json")
-                # ➕ log terminal
-                print("❌ Erreur JSON OpenAI :")
+
+                # ➕ Affiche dans la console terminal (stdout)
+                print(f"\n\n[ERREUR JSON - SKU: {row['sku']}]")
+                print("=== RAW RESPONSE ===")
                 print(raw_content)
+                print("=== CLEANED ===")
+                print(cleaned_content)
+
+                # ➕ Sauvegarde dans un fichier texte pour analyse ultérieure
+                error_log_path = os.path.join(output_dir, "openai_error_log.txt")
+                with open(error_log_path, "a", encoding="utf-8") as f:
+                    f.write(f"\n\n[SKU: {row['sku']}]\n")
+                    f.write("=== RAW RESPONSE ===\n")
+                    f.write(raw_content)
+                    f.write("\n=== CLEANED ===\n")
+                    f.write(cleaned_content)
+                    f.write("\n")
                 return None
-        else:
-            st.error("Réponse vide ou invalide reçue de l'API OpenAI.")
-            return None
 
     except Exception as e:
         st.error(f"Erreur avec OpenAI : {str(e)}")
