@@ -5,6 +5,7 @@ import requests
 import csv
 import json
 import shutil
+import re
 from datetime import date
 from urllib.parse import urlparse
 from openai import OpenAI
@@ -110,14 +111,23 @@ def fetch_product_data(row):
         return None
 
 def clean_openai_response(content):
-    """Nettoie la réponse OpenAI pour éviter les erreurs de parsing JSON."""
+    """Nettoie la réponse OpenAI pour éviter les erreurs JSON."""
     content = content.strip()
+
+    # Supprime les balises de bloc de code Markdown
     content = content.replace("```json", "").replace("```", "")
-    content = content.replace('("', '(\\"').replace('")', '\\")')
+
+    # Échappe les guillemets non protégés dans les parenthèses du type (21.5")
+    content = re.sub(r'\((\d{1,3}\.\d{1,3})"\)', r'(\1\\")', content)  # (21.5") → (21.5\")
+
+    # Variante avec virgule (ex: 54,6 cm (21.5")) → protège bien aussi
+    content = re.sub(r'\((\d{1,3}[.,]\d{1,3})"\)', r'(\1\\")', content)
+
+    # Enlève la virgule finale si elle casse le JSON
     if content.endswith(","):
         content = content[:-1]
-    return content
 
+    return content
 
 def extract_images(data):
     """Extract image URLs from API data."""
