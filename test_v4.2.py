@@ -113,6 +113,7 @@ def clean_openai_response(content):
     """Nettoie la réponse OpenAI pour éviter les erreurs de parsing JSON."""
     content = content.strip()
     content = content.replace("```json", "").replace("```", "")
+    content = content.replace('("', '(\\"').replace('")', '\\")')
     if content.endswith(","):
         content = content[:-1]
     return content
