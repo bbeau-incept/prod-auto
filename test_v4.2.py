@@ -224,6 +224,9 @@ If any error occurs, return an empty JSON.
                 st.code(raw_content, language="json")
                 st.text("🔧 Contenu nettoyé avant parsing :")
                 st.code(cleaned_content, language="json")
+                # ➕ log terminal
+                print("❌ Erreur JSON OpenAI :")
+                print(raw_content)
                 return None
         else:
             st.error("Réponse vide ou invalide reçue de l'API OpenAI.")
@@ -307,7 +310,7 @@ def process_images(df):
             additional_images = []
             base_image = small_image = thumbnail_image = ""
 
-            for i in range(1, 31):
+            for i in range(1, 7):
                 img_url = row.get(f"img.{i}")
 
                 if pd.notna(img_url) and img_url:
