@@ -110,23 +110,23 @@ def fetch_product_data(row):
         st.warning(f"Erreur HTTP {response.status_code} lors de la récupération des données.")
         return None
 
+
 def clean_openai_response(content):
     """Nettoie la réponse OpenAI pour éviter les erreurs JSON."""
-
-    # Supprime les blocs Markdown ```json ... ```
     content = content.strip().replace("```json", "").replace("```", "")
 
-    # Échappe tous les guillemets non échappés à l'intérieur des chaînes
-    def escape_quotes_in_values(match):
-        value = match.group(0)
-        # Ignore les lignes déjà échappées, sinon double échappement
-        return value.replace('"', '\"')
+    # Entoure les valeurs non-quoted de guillemets (brutes comme: "key": valeur,)
+    def quote_unquoted_values(match):
+        key = match.group(1)
+        val = match.group(2).strip()
+        # Si déjà entre guillemets ou un bool/int/null, on ne touche pas
+        if val.startswith('"') or val in ["true", "false", "null"] or re.match(r'^-?\d+(\.\d+)?$', val):
+            return f'"{key}": {val}'
+        # Sinon on quote et on échappe les guillemets internes
+        val = val.replace('"', '\\"')
+        return f'"{key}": "{val}"'
 
-    # Cette regex cible les guillemets dans les valeurs des paires clé:valeur
-    content = re.sub(r'(?<=": )(?!")(.*?)(?=",?\n)', lambda m: escape_quotes_in_values(m), content)
-
-    # # Corrige les parenthèses avec guillemets (21.5")
-    # content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\"\2)', content)
+    content = re.sub(r'"([^"]+)":\s*([^,\n]+)', quote_unquoted_values, content)
 
     return content
 
@@ -580,10 +580,20 @@ def download_zip():
             mime="application/zip"
         )
 
-
 def main():
-    st.title("Traitement avancé des produits avec Streamlit")
+    st.set_page_config(page_title="Traitement des produits", layout="wide")
 
+    st.sidebar.title("🧭 Menu")
+    page = st.sidebar.radio("Choisissez une page :", ["Création des imports", "Test Icecat"])
+
+    if page == "Création des imports":
+        page_creation_imports()
+    elif page == "Test Icecat":
+        page_test_icecat()
+        
+def page_creation_imports():
+    st.title("📦 Création des imports")
+    
     uploaded_file = st.file_uploader("📂 Chargez un fichier CSV de produits", type="csv")
 
     if uploaded_file is not None:
@@ -601,14 +611,97 @@ def main():
         if st.button("🚀 Lancer le traitement"):
             process_file(uploaded_file, selected_outputs)
 
-            # Fermer les fichiers CSV restés ouverts
             for writer_info in writers.values():
                 for file in writer_info["files"]:
                     file.close()
 
             st.success("✅ Traitement terminé. Fichiers générés avec succès.")
             download_zip()
+            
+def page_test_icecat():
+    st.title("🧪 Test de présence des produits dans Icecat")
 
+    uploaded_file = st.file_uploader("📂 Importez un CSV avec colonnes : sku, Brand, PanNumber, Store", type="csv")
+
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+
+        # Vérification des colonnes
+        required_cols = {"sku", "Brand", "PanNumber", "Store"}
+        if not required_cols.issubset(df.columns):
+            st.error("❌ Le fichier doit contenir les colonnes : sku, Brand, PanNumber, Store")
+            return
+
+        st.success("✅ Fichier chargé avec succès.")
+        st.write(df.head())
+
+        results = []
+        progress = st.progress(0)
+        total = len(df)
+
+        icecat_key = st.secrets["ICECAT_API_TOKEN"]
+
+        for idx, row in df.iterrows():
+            sku = row["sku"]
+            brand = row["Brand"]
+            pan = row["PanNumber"]
+            store = int(row["Store"])
+            lang = languages.get(store, "en")
+
+            url = (
+                "https://live.icecat.biz/api"
+                f"?UserName=Patricel"
+                f"&lang={lang}"
+                f"&Brand={brand}"
+                f"&ProductCode={pan}"
+            )
+
+            try:
+                response = requests.get(url, headers={"api-token": icecat_key}, timeout=10)
+                status = response.status_code
+
+                if status == 200:
+                    comment = "Présent dans la DB Icecat"
+                elif status == 403:
+                    comment = "Présent mais non accessible (403)"
+                elif status == 404:
+                    comment = "Produit introuvable dans la DB Icecat"
+                else:
+                    comment = f"Erreur inconnue (code {status})"
+
+                results.append({
+                    "sku": sku,
+                    "Brand": brand,
+                    "PanNumber": pan,
+                    "Store": store,
+                    "Status": status,
+                    "Commentaire": comment
+                })
+
+            except Exception as e:
+                results.append({
+                    "sku": sku,
+                    "Brand": brand,
+                    "PanNumber": pan,
+                    "Store": store,
+                    "Status": "Error",
+                    "Commentaire": f"Erreur lors de la requête : {e}"
+                })
+
+            progress.progress((idx + 1) / total)
+
+        result_df = pd.DataFrame(results)
+        st.success("✅ Vérification terminée.")
+        st.dataframe(result_df)
+
+        # Téléchargement
+        csv = result_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Télécharger le rapport CSV",
+            data=csv,
+            file_name="rapport_test_icecat.csv",
+            mime="text/csv"
+        )
 
 if __name__ == "__main__":
     main()
