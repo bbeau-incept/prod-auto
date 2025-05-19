@@ -162,21 +162,21 @@ Please generate:
 2. **A baseline** placed inside <h2> tags
 3. **A product description** following this HTML outline:
 
-   <h2><strong>Product Overview</strong></h2>
+   Product Overview part 
    ↳ Several sentences introducing the product’s main value inside <p> tags.
 
-   <h2><strong>Key Benefits</strong></h2>
+   Key Benefits part 
    ↳ A <ul> with exactly 5 <li> items.
    ↳ Each <li> starts with a <strong>concise benefit phrase</strong>, followed by a short supporting sentence.
 
-   <h2><strong>Features & Use Cases</strong></h2>
+   Features & Use Cases part 
    ↳ A few <p> paragraphs describing real-world usage and advantages.
 
-   <h2><strong>Technical Details</strong></h2>
+   Technical Details part 
    ↳ A <table> with 2 columns and up to 8 rows.
    ↳ Column 1 = spec label, Column 2 = value (choose relevant specs like Dimensions, Weight, Battery, Connectivity...).
 
-   <h2><strong>Order Now</strong></h2>
+   Order Now part 
    ↳ A persuasive <p> call-to-action.
 
 4. **Escaped quotes** for valid JSON (use \\\" instead of ")
