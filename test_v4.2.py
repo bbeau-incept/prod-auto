@@ -13,6 +13,8 @@ from PIL import Image, ImageOps
 from io import BytesIO
 import zipfile
 from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 
 def get_output_folder(base_name):
@@ -328,49 +330,63 @@ def close_attribute_writers():
         file_info["file"].close()
 
 
-def process_images(df):
-    """Télécharge, traite et compresse les images dans un fichier ZIP avec affichage de logs."""
-    st.info("📸 Début du traitement des images...")
 
+def download_and_process_image(sku, img_url, index):
+    try:
+        response = requests.get(img_url, timeout=10)
+        if response.status_code == 200:
+            image = Image.open(BytesIO(response.content))
+            image_square = ImageOps.pad(image, (800, 800), color="white", centering=(0.5, 0.5))
+            img_filename = f"{sku}_{index}.jpg"
+            img_buffer = BytesIO()
+            image_square.save(img_buffer, format="JPEG")
+            return {
+                "success": True,
+                "filename": img_filename,
+                "buffer": img_buffer.getvalue(),
+                "index": index
+            }
+        else:
+            return {"success": False, "error": f"Échec téléchargement (status {response.status_code})", "index": index}
+    except Exception as e:
+        return {"success": False, "error": str(e), "index": index}
+    
+
+def process_images(df):
+    st.info("📸 Début du traitement des images...")
     total_rows = len(df)
     progress_bar = st.progress(0)
     current = 0
+    logs = []
 
     with zipfile.ZipFile(images_zip_path, 'w') as zipf:
         for _, row in df.iterrows():
-            current += 1
             sku = row.get("sku")
-            st.write(f"🔧 Traitement images pour SKU: `{sku}`")
-
             additional_images = []
             base_image = small_image = thumbnail_image = ""
+            current += 1
 
-            for i in range(1, 6):
-                img_url = row.get(f"img.{i}")
+            futures = []
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                for i in range(1, 6):
+                    img_url = row.get(f"img.{i}")
+                    if pd.notna(img_url) and img_url:
+                        futures.append(executor.submit(download_and_process_image, sku, img_url, i))
 
-                if pd.notna(img_url) and img_url:
-                    try:
-                        st.write(f"➡️ Téléchargement de l’image {i}: {img_url}")
-                        response = requests.get(img_url, timeout=10)
-                        if response.status_code == 200:
-                            image = Image.open(BytesIO(response.content))
-                            image_square = ImageOps.pad(image, (800, 800), color="white", centering=(0.5, 0.5))
-                            img_filename = f"{sku}_{i}.jpg"
+                results = [f.result() for f in as_completed(futures)]
 
-                            with BytesIO() as img_buffer:
-                                image_square.save(img_buffer, format="JPEG")
-                                zipf.writestr(img_filename, img_buffer.getvalue())
+            # Sort results by image index to ensure correct order
+            results.sort(key=lambda r: r["index"])
 
-                            if i == 1:
-                                base_image = img_filename
-                                small_image = img_filename
-                                thumbnail_image = img_filename
-                            else:
-                                additional_images.append(img_filename)
-                        else:
-                            st.warning(f"⚠️ Échec du téléchargement (status {response.status_code}) : {img_url}")
-                    except Exception as e:
-                        st.error(f"❌ Erreur traitement image {img_url} : {e}")
+            for res in results:
+                if res["success"]:
+                    zipf.writestr(res["filename"], res["buffer"])
+                    if res["index"] == 1:
+                        base_image = small_image = thumbnail_image = res["filename"]
+                    else:
+                        additional_images.append(res["filename"])
+                else:
+                    logs.append(f"❌ {sku} - img.{res['index']} : {res['error']}")
 
             image_data.append({
                 "sku": sku,
@@ -384,6 +400,11 @@ def process_images(df):
 
     st.success("✅ Toutes les images ont été traitées et compressées.")
     pd.DataFrame(image_data).to_csv(images_csv_path, index=False)
+
+    if logs:
+        st.warning("⚠️ Quelques erreurs sont survenues :")
+        st.code("\n".join(logs), language="text")
+
 
     
     
