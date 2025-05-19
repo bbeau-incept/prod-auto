@@ -112,21 +112,28 @@ def fetch_product_data(row):
 
 
 def clean_openai_response(content):
-    """Nettoie la réponse OpenAI pour éviter les erreurs JSON."""
+    """Nettoie une réponse OpenAI JSON contenant du texte potentiellement mal échappé."""
+
+    # Étape 1 : On supprime les backticks markdown
     content = content.strip().replace("```json", "").replace("```", "")
 
-    # Entoure les valeurs non-quoted de guillemets (brutes comme: "key": valeur,)
-    def quote_unquoted_values(match):
-        key = match.group(1)
-        val = match.group(2).strip()
-        # Si déjà entre guillemets ou un bool/int/null, on ne touche pas
-        if val.startswith('"') or val in ["true", "false", "null"] or re.match(r'^-?\d+(\.\d+)?$', val):
-            return f'"{key}": {val}'
-        # Sinon on quote et on échappe les guillemets internes
-        val = val.replace('"', '\\"')
-        return f'"{key}": "{val}"'
+    # Étape 2 : On remplace les guillemets typographiques par des guillemets simples
+    content = content.replace("“", '"').replace("”", '"')
 
-    content = re.sub(r'"([^"]+)":\s*([^,\n]+)', quote_unquoted_values, content)
+    # Étape 3 : On échappe les guillemets internes dans les valeurs string JSON
+    def escape_inner_quotes(match):
+        key = match.group(1)
+        val = match.group(2)
+
+        # On n'échappe QUE l'intérieur de la string
+        escaped_val = val.replace('\\"', '"')  # d'abord on nettoie les doubles échappements accidentels
+        escaped_val = escaped_val.replace('"', '\\"')  # puis on échappe les guillemets normaux
+
+        return f'"{key}": "{escaped_val}"'
+
+    # Cette regex capture "clé": "valeur" même avec du contenu long
+    # Attention : elle ne gère pas tous les cas ultra complexes, mais ça suffit pour 95% des réponses LLM
+    content = re.sub(r'"([^"]+)":\s*"((?:[^"\\]|\\.)*)"', escape_inner_quotes, content)
 
     return content
 
