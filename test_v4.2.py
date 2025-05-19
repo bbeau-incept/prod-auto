@@ -133,7 +133,7 @@ def clean_openai_response(content):
 
     # Cette regex capture "clé": "valeur" même avec du contenu long
     # Attention : elle ne gère pas tous les cas ultra complexes, mais ça suffit pour 95% des réponses LLM
-    content = re.sub(r'"([^"]+)":\s*"((?:[^"\\]|\\.)*?)"\s*(?=[,}\]])', escape_inner_quotes, content)
+    content = re.sub(r'"([^"]+)":\s*"((?:[^"]|\\")*)"', escape_inner_quotes, content)
 
     return content
 
