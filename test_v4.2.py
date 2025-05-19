@@ -126,7 +126,7 @@ def clean_openai_response(content):
     content = re.sub(r'(?<=": )(?!")(.*?)(?=",?\n)', lambda m: escape_quotes_in_values(m), content)
 
     # Corrige les parenthèses avec guillemets (21.5")
-    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\\"\2)', content)
+    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\"\2)', content)
 
     return content
 
@@ -344,7 +344,7 @@ def process_images(df):
             additional_images = []
             base_image = small_image = thumbnail_image = ""
 
-            for i in range(1, 7):
+            for i in range(1, 6):
                 img_url = row.get(f"img.{i}")
 
                 if pd.notna(img_url) and img_url:
@@ -543,7 +543,7 @@ def process_file(file, selected_outputs):
                     "attribute_set_code": row["attribut_set"]
                 }
 
-                for i in range(1, 31):
+                for i in range(1, 6):
                     img_field = f"img.{i}"
                     consolidated_row[img_field] = images[i - 1] if i - 1 < len(images) else ""
 
