@@ -125,8 +125,8 @@ def clean_openai_response(content):
     # Cette regex cible les guillemets dans les valeurs des paires clé:valeur
     content = re.sub(r'(?<=": )(?!")(.*?)(?=",?\n)', lambda m: escape_quotes_in_values(m), content)
 
-    # Corrige les parenthèses avec guillemets (21.5")
-    content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\"\2)', content)
+    # # Corrige les parenthèses avec guillemets (21.5")
+    # content = re.sub(r'\(([^)]*?)"([^\)]*?)\)', r'(\1\\"\2)', content)
 
     return content
 
