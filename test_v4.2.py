@@ -114,26 +114,33 @@ def fetch_product_data(row):
 def clean_openai_response(content):
     """Nettoie une réponse OpenAI JSON contenant du texte potentiellement mal échappé."""
 
-    # Étape 1 : On supprime les backticks markdown
+    # Étape 1 : Supprimer les backticks markdown
     content = content.strip().replace("```json", "").replace("```", "")
 
-    # Étape 2 : On remplace les guillemets typographiques par des guillemets simples
+    # Étape 2 : Remplacer les guillemets typographiques par des guillemets simples
     content = content.replace("“", '"').replace("”", '"')
 
-    # Étape 3 : On échappe les guillemets internes dans les valeurs string JSON
-    def escape_inner_quotes(match):
+    # # Étape 3 : Échapper les guillemets internes dans les valeurs string JSON
+    # def escape_inner_quotes(match):
+    #     key = match.group(1)
+    #     val = match.group(2)
+    #     # Nettoyage des échappements en double puis échappement des guillemets internes
+    #     escaped_val = val.replace('\\"', '"')  # corrige les sur-échappements
+    #     escaped_val = escaped_val.replace('"', '\\"')  # échappe les guillemets normaux
+    #     return f'"{key}": "{escaped_val}"'
+
+    # # Appliquer sur toutes les paires "clé": "valeur"
+    # content = re.sub(r'"([^"]+)":\s*"((?:[^"]|\\")*)"', escape_inner_quotes, content)
+
+    # Étape 4 : Patch ciblé pour corriger le cas : 21,5" → 21,5\"
+    def fix_unescaped_end_quote(match):
         key = match.group(1)
         val = match.group(2)
+        # Échappe uniquement le guillemet de fin interne non échappé
+        fixed_val = re.sub(r'(?<!\\)"$', r'\\"', val)
+        return f'"{key}": "{fixed_val}"'
 
-        # On n'échappe QUE l'intérieur de la string
-        escaped_val = val.replace('\\"', '"')  # d'abord on nettoie les doubles échappements accidentels
-        escaped_val = escaped_val.replace('"', '\\"')  # puis on échappe les guillemets normaux
-
-        return f'"{key}": "{escaped_val}"'
-
-    # Cette regex capture "clé": "valeur" même avec du contenu long
-    # Attention : elle ne gère pas tous les cas ultra complexes, mais ça suffit pour 95% des réponses LLM
-    content = re.sub(r'"([^"]+)":\s*"((?:[^"]|\\")*)"', escape_inner_quotes, content)
+    content = re.sub(r'"([^"]+)":\s*"(.*[^\\])"(?=,)', fix_unescaped_end_quote, content)
 
     return content
 
