@@ -111,31 +111,25 @@ def fetch_product_data(row):
         return None
 
 
-def clean_openai_response(content):
-    """Corrige uniquement les strings JSON où un guillemet non échappé est juste avant la fin d'une valeur."""
-
-    # Étape 1 : Nettoyage Markdown
+def sanitize_broken_json_string(content):
+    """Nettoie un JSON sous forme de string contenant des erreurs classiques dans les valeurs."""
+    
     content = content.strip().replace("```json", "").replace("```", "")
+    content = content.replace("“", '"').replace("”", '"')  # guillemets typographiques
 
-
-    # Étape 2 : Corriger uniquement les `"` juste avant la fin d'une string JSON
-    def fix_broken_quote(match):
+    # Match tous les champs de type "clé": "valeur" (même sur plusieurs lignes), avec une tolérance au contenu foireux
+    def fix_quoted_values(match):
         key = match.group(1)
-        val = match.group(2)
+        raw_val = match.group(2)
+        # échappe les guillemets internes mal échappés
+        fixed_val = re.sub(r'(?<!\\)"', r'\\"', raw_val)
+        return f'"{key}": "{fixed_val}"'
 
-        # On remplace un " non échappé juste avant le dernier guillemet
-        # Exemple : 21,5")  →  21,5\")
-        val_fixed = re.sub(r'(?<!\\)"(?=\s*[,}\]])', r'\\"', val)
+    # Expression régulière pour capturer chaque paire clé:valeur textuelle
+    pattern = r'"([^"]+)":\s*"(.*?)"(?=\s*[,}])'  # match non-greedy sur la valeur
+    fixed = re.sub(pattern, fix_quoted_values, content, flags=re.DOTALL)
 
-        return f'"{key}": "{val_fixed}"'
-
-    # Match toutes les paires "clé": "valeur"
-    pattern = r'"([^"]+)":\s*"((?:[^"\\]|\\.)*?)"(?=\s*[,}\]])'
-    content = re.sub(pattern, fix_broken_quote, content)
-
-    return content
-
-    return content
+    return fixed
 
 def extract_images(data):
     """Extract image URLs from API data."""
@@ -232,7 +226,7 @@ If any error occurs, return an empty JSON.
         # Attempt to parse the response
         if response.choices and response.choices[0].message.content:
             raw_content = response.choices[0].message.content
-            cleaned_content = clean_openai_response(raw_content)
+            cleaned_content = sanitize_broken_json_string(raw_content)
 
             try:
                 return json.loads(cleaned_content)
