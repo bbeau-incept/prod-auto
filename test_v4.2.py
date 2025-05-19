@@ -161,7 +161,7 @@ Please generate:
 1. **A short product name** (max 60 characters)
 2. **A baseline** placed inside <h2> tags
 3. **A product description** following this HTML outline:
-
+    Include a H3 for each part
    Product Overview part 
    ↳ Several sentences introducing the product’s main value inside <p> tags.
 
