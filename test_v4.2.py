@@ -150,11 +150,11 @@ def extract_images(data):
 def generate_openai_content(api_data, row, url):
     """Generate content using OpenAI API."""
     ai_prompt = """
-Here is an example of an URL for a product on the OneDirect website: {0}
-
 You are an experienced SEO copywriter working for the {3} website, specialized in tech and telecom products. Your goal is to deliver a clear, persuasive product description using simple HTML tags only: <h2>, <p>, <strong>, <em>, <ul>, <li>, <table>, <tr>, <td>.
 
-You must write in {3} and follow the latest European spelling and punctuation conventions for that language. Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
+You MUST write in {3}.
+Follow the latest European spelling and punctuation conventions for that language.
+Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
 
 The product information is available in the following JSON: {1}
 The product name is: {2}
