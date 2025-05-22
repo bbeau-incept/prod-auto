@@ -171,7 +171,7 @@ Use short sentences, active voice, and aim for a high Flesch Reading Ease score.
 The product information is available in the following JSON: {1}
 The product name is: {2}
 
-Please generate the following, as a valid JSON object with properly escaped quotes (\\"):
+Please generate the following, as a valid JSON object with properly escaped quotes (\\") and Do not include raw line breaks in JSON strings. Keep all HTML content on a single line.:
 
 1. name — a short version of the product name (max 60 characters)
 
