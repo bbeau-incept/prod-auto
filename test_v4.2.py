@@ -219,6 +219,7 @@ If the model fails to understand the request or data is missing, return an empty
                 {
                     "role": "user",
                     "content": ai_prompt.format(url, infos, title, language_label),
+                    "token_max": 6000
                 }
             ]
         )
