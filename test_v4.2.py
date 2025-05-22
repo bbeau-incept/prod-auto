@@ -57,7 +57,7 @@ languages = {
 
 fieldnames_price = ["sku", "website_id", "price", "special_price"]
 fieldnames_status = ["sku", "store_id", "status"]
-fieldnames_missing_content = ["sku", "onedirect_ref_fournisseur", "onedirect_ean", "onedirect_warranty_time", "store_id"]
+fieldnames_missing_content = ["sku", "onedirect_warranty_time", "store_id"]
 fieldnames_processed = ["sku", "product name", "Brand", "PanNumber", "Store", "Price", "special_price", "attribut_set"]
 fieldnames_openai = ["sku", "store_id","name", "onedirect_baseline", "description", "short_description", "visibility"]
 fieldnames_consolidated = ["sku", "ean", "PanNumber", "Brand", "attribute_set_code"] + [f"img.{i}" for i in range(1, 31)]
@@ -492,16 +492,38 @@ def process_file(file, selected_outputs):
             gtin_list = api_data["data"]["GeneralInfo"].get("GTIN", [])
             gtin = gtin_list[0] if gtin_list else ""
 
-            # Data for missing content
+            # Mapping des durées de garantie vers leurs IDs
+            warranty_mapping = {
+                "1 year": 575,
+                "2 years": 576,
+                "3 years": 577,
+                "4 years": 578,
+                "5 years": 579,
+                "6 years": 580,
+                "7 years": 14639,
+                "8 years": 581,
+                "10 years": 582,
+                "12 years": 583,
+                "for life": 584,
+                "3 months": 13983,
+               "6 months": 13982
+            }
+
+            # Extraction de la valeur d'entrée
+            warranty_value = row.get("onedirect_warranty_time", "")
+            warranty_id = warranty_mapping.get(warranty_value, "")
+
+            # Données pour contenu manquant
             missing_content_row = {
                 "sku": row["sku"],
-                "onedirect_ref_fournisseur": row.get("PanNumber", ""),
-                "onedirect_ean": gtin,
-                "onedirect_warranty_time": row.get("onedirect_warranty_time", ""),
+                # "onedirect_ref_fournisseur": row.get("PanNumber", ""),
+                # "onedirect_ean": gtin,
+                "onedirect_warranty_time": warranty_id,
                 "store_id": row["Store"]
             }
             if "Missing content" in selected_outputs:
                 writers[country]["missing"].writerow(missing_content_row)
+
 
             # Write status and price information
             writers[country]["status"].writerow({
