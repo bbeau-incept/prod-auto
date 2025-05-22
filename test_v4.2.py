@@ -46,13 +46,13 @@ images_csv_path = os.path.join(output_dir, "structured_images.csv")
 image_data = []
 
 languages = {
-    2: "en - English",
-    3: "fr - Français",
-    4: "es - Español",
-    5: "pt - Português",
-    6: "it - Italiano",
-    7: "de - Deutsch",
-    8: "nl - Nederlands"
+    2: "en",
+    3: "fr",
+    4: "es",
+    5: "pt",
+    6: "it",
+    7: "de",
+    8: "nl"
 }
 
 fieldnames_price = ["sku", "website_id", "price", "special_price"]
