@@ -202,12 +202,11 @@ If the model fails to understand the request or data is missing, return an empty
         title = api_data["data"]["GeneralInfo"]["Title"]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": ai_prompt.format(url, infos, title, urlparse(url).hostname),
-                    "max_tokens": 3000
                 }
             ]
         )
