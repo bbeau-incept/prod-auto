@@ -202,7 +202,7 @@ If the model fails to understand the request or data is missing, return an empty
         title = api_data["data"]["GeneralInfo"]["Title"]
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {
                     "role": "user",
