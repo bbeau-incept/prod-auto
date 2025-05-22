@@ -156,48 +156,37 @@ You are an experienced SEO copywriter working for the {3} website, specialized i
 
 You must write in {3} and follow the latest European spelling and punctuation conventions for that language. Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
 
-The product information is available in the following JSON: {1}.
-The product name is: {2}.
+The product information is available in the following JSON: {1}
+The product name is: {2}
 
-Please generate:
+Please generate the following, as a valid JSON object with properly escaped quotes (\\"):
 
-1. **A short product name** (max 60 characters)
-2. **A baseline** placed inside <h2> tags
-3. **A product description** following this HTML outline:
-    Include a H3 for each part
-   Product Overview part 
-   ↳ Several sentences introducing the product’s main value inside <p> tags.
+1. name — a short version of the product name (max 60 characters)
 
-   Key Benefits part 
-   ↳ A <ul> with exactly 5 <li> items.
-   ↳ Each <li> starts with a <strong>concise benefit phrase</strong>, followed by a short supporting sentence.
+2. baseline — a catchy sentence placed inside <h2> tags
 
-   Features & Use Cases part 
-   ↳ A few <p> paragraphs describing real-world usage and advantages.
+3. features — a <ul> with exactly 5 <li> items.
+   Each <li> starts with a <strong>concise benefit</strong> followed by a short explanation.
+   This will be used as the short description.
 
-   Technical Details part 
-   ↳ A <table> with 2 columns and up to 8 rows.
-   ↳ Column 1 = spec label, Column 2 = value (choose relevant specs like Dimensions, Weight, Battery, Connectivity...).
+4. description — a full HTML product description structured into flowing <p>, <ul>, <table> blocks (but **without any section titles like <h3>**). Include:
+   - A product overview paragraph.
+   - A longer and more detailed version of the 5 benefits from the "features" section, expanded as natural text.
+   - Real-world usage examples and advantages.
+   - A <table> with up to 8 relevant technical details (2 columns: label and value).
+   - A persuasive final call-to-action.
 
-   Order Now part 
-   ↳ A persuasive <p> call-to-action.
+5. weight — extracted from the product data, if available
 
-4. **Escaped quotes** for valid JSON (use \\\" instead of ")
+6. width — extracted if available
 
-5. **Key dimensions**: extract package weight, width, depth, and height from the product info (if unavailable, leave blank).
+7. height — extracted if available
 
-Return the final result as a valid JSON object with the following fields:
-- name
-- baseline
-- description
-- features (the <ul> block only)
-- weight
-- width
-- height
-- depth
+8. depth — extracted if available
 
-If any error occurs, return an empty JSON.
+If the model fails to understand the request or data is missing, return an empty JSON.
 """
+
     openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY )
     if not openai_key:
         st.error("Clé API OpenAI non configurée.")
