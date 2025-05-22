@@ -148,9 +148,20 @@ def extract_images(data):
 
 
 def generate_openai_content(api_data, row, url):
+    languages_for_prompt = { 
+        2: "en - English",
+        3: "fr - Français",
+        4: "es - Español",
+        5: "pt - Português",
+        6: "it - Italiano",
+        7: "de - Deutsch",
+        8: "nl - Nederlands"
+    }
+
+    language_label = languages_for_prompt.get(row["Store"], "en - English")
     """Generate content using OpenAI API."""
     ai_prompt = """
-You MUST respond in {3}.
+You MUST respond in {3}, meaning the content should be written entirely in that language.
 You are an experienced SEO copywriter working for the {3} website, specialized in tech and telecom products. Your goal is to deliver a clear, persuasive product description using simple HTML tags only: <h2>, <p>, <strong>, <em>, <ul>, <li>, <table>, <tr>, <td>.
 
 You MUST write in {3}.
@@ -207,7 +218,7 @@ If the model fails to understand the request or data is missing, return an empty
             messages=[
                 {
                     "role": "user",
-                    "content": ai_prompt.format(url, infos, title, urlparse(url).hostname),
+                    "content": ai_prompt.format(url, infos, title, language_label),
                 }
             ]
         )
