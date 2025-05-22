@@ -206,7 +206,8 @@ If the model fails to understand the request or data is missing, return an empty
             messages=[
                 {
                     "role": "user",
-                    "content": ai_prompt.format(url, infos, title, urlparse(url).hostname)
+                    "content": ai_prompt.format(url, infos, title, urlparse(url).hostname),
+                    "max_tokens": 3000
                 }
             ]
         )
