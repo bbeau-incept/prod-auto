@@ -182,7 +182,8 @@ Please generate the following, as a valid JSON object with properly escaped quot
    This will be used as the short description.
 
 4. description — a full HTML product description structured into flowing <p>, <ul>, <strong>, <table> blocks. (but **without any section titles like <h3>**) Include:
-   - A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)(introduce by a origanal title in H3)
+   - A short title <H3> including the name of the product
+   - A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)
    - A longer and more detailed version of the 5 benefits from the "features" section, expanded as natural text.(detail each point of the features)
    - Real-world usage examples and advantages. (A few <p> paragraphs describing real-world usage and advantages.)
    - A <table> with up to 8 relevant technical details (2 columns: label and value).
