@@ -181,7 +181,7 @@ Please generate the following, as a valid JSON object with properly escaped quot
    Each <li> starts with a <strong>concise benefit</strong> followed by a short explanation.
    This will be used as the short description.
 
-4. description — a full HTML product description structured into flowing <p>, <ul>, <strong>, <table> blocks. (but **without any section titles like <h3>**) Include:
+4. description — a full HTML product description structured into flowing <p>, <ul>, <table> blocks. Include <strong> for keypoint of the desciption (but **without any section titles like <h3>**) Include:
    - A short title <H3> including the name of the product
    - A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)
    - A longer and more detailed version of the 5 benefits from the "features" section, expanded as natural text.(detail each point of the features)
