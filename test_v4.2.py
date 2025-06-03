@@ -631,14 +631,14 @@ def main():
     st.set_page_config(page_title="Traitement des produits", layout="wide")
 
     st.sidebar.title("🧭 Menu")
-    page = st.sidebar.radio("Choisissez une page :", ["Création des imports", "Test Icecat", "Réécriture OpenAI"])
+    page = st.sidebar.radio("Choisissez une page :", ["Création des imports", "Test Icecat", "Traduction en batch OpenAI"])
 
     if page == "Création des imports":
         page_creation_imports()
     elif page == "Test Icecat":
         page_test_icecat()
-    elif page == "Réécriture OpenAI":
-        page_openai_batch_rewriter()
+    elif page == "Traduction en batch OpenAI":
+        page_openai_translation()
         
 def page_creation_imports():
     st.title("📦 Création des imports")
@@ -752,8 +752,8 @@ def page_test_icecat():
             mime="text/csv"
         )
         
-def page_openai_batch_rewriter():
-    st.title("🔁 Réécriture de contenu avec OpenAI")
+def page_openai_translation():
+    st.title("🌍 Traduction de contenu avec OpenAI")
 
     uploaded_file = st.file_uploader("📂 Chargez un fichier CSV avec une colonne 'content'", type="csv")
 
@@ -767,8 +767,24 @@ def page_openai_batch_rewriter():
         st.success("✅ Fichier chargé avec succès")
         st.write(df.head())
 
-        if st.button("🚀 Envoyer à OpenAI et générer les réponses"):
-            st.info("🧠 Envoi des données à OpenAI...")
+        # Sélection du pays cible
+        country_code = st.selectbox("🌐 Choisissez le pays cible pour la traduction :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
+
+        # Mapping langue par pays
+        lang_map = {
+            "FR": "French",
+            "UK": "English",
+            "ES": "Spanish",
+            "PT": "Portuguese",
+            "IT": "Italian",
+            "DE": "German",
+            "NL": "Dutch"
+        }
+
+        target_language = lang_map.get(country_code, "English")
+
+        if st.button("🚀 Traduire avec OpenAI"):
+            st.info(f"🧠 Traduction vers : {target_language}")
             openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY)
 
             if not openai_key:
@@ -780,40 +796,38 @@ def page_openai_batch_rewriter():
             progress = st.progress(0)
 
             for i, row in df.iterrows():
-                content = row["content"]
+                original_text = row["content"]
+
+                prompt = f"Translate the following text into {target_language}:\n\n{original_text}"
 
                 try:
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": f"Please improve the following content for clarity and style, but keep the meaning unchanged:\n\n{content}"
-                            }
-                        ]
+                        messages=[{"role": "user", "content": prompt}]
                     )
-                    ai_text = response.choices[0].message.content.strip()
+                    translation = response.choices[0].message.content.strip()
                 except Exception as e:
-                    ai_text = f"[Erreur OpenAI] {e}"
+                    translation = f"[Erreur OpenAI] {e}"
 
                 results.append({
-                    "original_content": content,
-                    "ai_response": ai_text
+                    "original_content": original_text,
+                    "translated_content": translation
                 })
 
                 progress.progress((i + 1) / len(df))
 
             result_df = pd.DataFrame(results)
-            st.success("✅ Réécriture terminée")
+            st.success("✅ Traduction terminée")
             st.dataframe(result_df.head())
 
             csv = result_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                label="📥 Télécharger le fichier réécrit",
+                label="📥 Télécharger le fichier traduit",
                 data=csv,
-                file_name="openai_rewritten_output.csv",
+                file_name=f"traduction_{country_code}.csv",
                 mime="text/csv"
             )
+
 
 
 if __name__ == "__main__":
