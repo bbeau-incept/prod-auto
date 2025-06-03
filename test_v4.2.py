@@ -606,12 +606,14 @@ def main():
     st.set_page_config(page_title="Traitement des produits", layout="wide")
 
     st.sidebar.title("🧭 Menu")
-    page = st.sidebar.radio("Choisissez une page :", ["Création des imports", "Test Icecat"])
+    page = st.sidebar.radio("Choisissez une page :", ["Création des imports", "Test Icecat", "Réécriture OpenAI"])
 
     if page == "Création des imports":
         page_creation_imports()
     elif page == "Test Icecat":
         page_test_icecat()
+    elif page == "Réécriture OpenAI":
+        page_openai_batch_rewriter()
         
 def page_creation_imports():
     st.title("📦 Création des imports")
@@ -724,6 +726,70 @@ def page_test_icecat():
             file_name="rapport_test_icecat.csv",
             mime="text/csv"
         )
+        
+def page_openai_batch_rewriter():
+    st.title("🔁 Réécriture de contenu avec OpenAI")
+
+    uploaded_file = st.file_uploader("📂 Chargez un fichier CSV avec une colonne 'content'", type="csv")
+
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+
+        if "content" not in df.columns:
+            st.error("❌ Le fichier doit contenir une colonne 'content'")
+            return
+
+        st.success("✅ Fichier chargé avec succès")
+        st.write(df.head())
+
+        if st.button("🚀 Envoyer à OpenAI et générer les réponses"):
+            st.info("🧠 Envoi des données à OpenAI...")
+            openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY)
+
+            if not openai_key:
+                st.error("❌ Clé API OpenAI manquante")
+                return
+
+            client = OpenAI(api_key=openai_key)
+            results = []
+            progress = st.progress(0)
+
+            for i, row in df.iterrows():
+                content = row["content"]
+
+                try:
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": f"Please improve the following content for clarity and style, but keep the meaning unchanged:\n\n{content}"
+                            }
+                        ]
+                    )
+                    ai_text = response.choices[0].message.content.strip()
+                except Exception as e:
+                    ai_text = f"[Erreur OpenAI] {e}"
+
+                results.append({
+                    "original_content": content,
+                    "ai_response": ai_text
+                })
+
+                progress.progress((i + 1) / len(df))
+
+            result_df = pd.DataFrame(results)
+            st.success("✅ Réécriture terminée")
+            st.dataframe(result_df.head())
+
+            csv = result_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Télécharger le fichier réécrit",
+                data=csv,
+                file_name="openai_rewritten_output.csv",
+                mime="text/csv"
+            )
+
 
 if __name__ == "__main__":
     main()
