@@ -753,24 +753,25 @@ def page_test_icecat():
         )
         
 def page_openai_translation():
-    st.title("🌍 Traduction de contenu avec OpenAI")
+    st.title("🌍 Traduction multicolonne avec OpenAI")
 
-    uploaded_file = st.file_uploader("📂 Chargez un fichier CSV avec une colonne 'content'", type="csv")
+    uploaded_file = st.file_uploader("📂 Chargez un fichier CSV", type="csv")
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-
-        if "content" not in df.columns:
-            st.error("❌ Le fichier doit contenir une colonne 'content'")
-            return
-
         st.success("✅ Fichier chargé avec succès")
         st.write(df.head())
 
-        # Sélection du pays cible
-        country_code = st.selectbox("🌐 Choisissez le pays cible pour la traduction :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
+        # Sélection des colonnes à traduire
+        selectable_columns = list(df.columns)
+        selected_columns = st.multiselect("📝 Sélectionnez les colonnes à traduire :", selectable_columns)
 
-        # Mapping langue par pays
+        if not selected_columns:
+            st.warning("⚠️ Veuillez sélectionner au moins une colonne.")
+            return
+
+        # Sélection de la langue cible
+        country_code = st.selectbox("🌐 Choisissez le pays cible :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
         lang_map = {
             "FR": "French",
             "UK": "English",
@@ -780,51 +781,49 @@ def page_openai_translation():
             "DE": "German",
             "NL": "Dutch"
         }
-
         target_language = lang_map.get(country_code, "English")
 
-        if st.button("🚀 Traduire avec OpenAI"):
-            st.info(f"🧠 Traduction vers : {target_language}")
+        if st.button("🚀 Lancer la traduction"):
+            st.info(f"🧠 Traduction en cours vers : {target_language}")
             openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY)
-
             if not openai_key:
                 st.error("❌ Clé API OpenAI manquante")
                 return
 
             client = OpenAI(api_key=openai_key)
-            results = []
+            total_tasks = len(df) * len(selected_columns)
             progress = st.progress(0)
+            task_count = 0
 
-            for i, row in df.iterrows():
-                original_text = row["content"]
+            for col in selected_columns:
+                translated_col = f"{col}_translated_{country_code}"
+                df[translated_col] = ""
 
-                prompt = f"Translate the following text into {target_language}:\n\n{original_text}"
+                for i in range(len(df)):
+                    original_text = str(df.at[i, col])
 
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    translation = response.choices[0].message.content.strip()
-                except Exception as e:
-                    translation = f"[Erreur OpenAI] {e}"
+                    prompt = f"Translate the following text into {target_language}:\n\n{original_text}"
+                    try:
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        translated_text = response.choices[0].message.content.strip()
+                    except Exception as e:
+                        translated_text = f"[Erreur OpenAI] {e}"
 
-                results.append({
-                    "original_content": original_text,
-                    "translated_content": translation
-                })
+                    df.at[i, translated_col] = translated_text
+                    task_count += 1
+                    progress.progress(task_count / total_tasks)
 
-                progress.progress((i + 1) / len(df))
-
-            result_df = pd.DataFrame(results)
             st.success("✅ Traduction terminée")
-            st.dataframe(result_df.head())
+            st.dataframe(df.head())
 
-            csv = result_df.to_csv(index=False).encode("utf-8")
+            csv = df.to_csv(index=False).encode("utf-8")
             st.download_button(
                 label="📥 Télécharger le fichier traduit",
                 data=csv,
-                file_name=f"traduction_{country_code}.csv",
+                file_name=f"traduction_multicolonne_{country_code}.csv",
                 mime="text/csv"
             )
 
