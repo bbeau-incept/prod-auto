@@ -57,7 +57,7 @@ languages = {
 
 fieldnames_price = ["sku", "website_id", "price", "special_price"]
 fieldnames_status = ["sku", "store_id", "status"]
-fieldnames_missing_content = ["sku", "onedirect_ref_fournisseur", "onedirect_ean", "onedirect_warranty_time", "store_id"]
+fieldnames_missing_content = ["sku", "onedirect_warranty_time", "store_id"]
 fieldnames_processed = ["sku", "product name", "Brand", "PanNumber", "Store", "Price", "special_price", "attribut_set"]
 fieldnames_openai = ["sku", "store_id","name", "onedirect_baseline", "description", "short_description", "visibility"]
 fieldnames_consolidated = ["sku", "ean", "PanNumber", "Brand", "attribute_set_code"] + [f"img.{i}" for i in range(1, 31)]
@@ -148,56 +148,58 @@ def extract_images(data):
 
 
 def generate_openai_content(api_data, row, url):
+    languages_for_prompt = { 
+        2: "en - English",
+        3: "fr - Français",
+        4: "es - Español",
+        5: "pt - Português",
+        6: "it - Italiano",
+        7: "de - Deutsch",
+        8: "nl - Nederlands"
+    }
+
+    language_label = languages_for_prompt.get(row["Store"], "en - English")
     """Generate content using OpenAI API."""
     ai_prompt = """
-Here is an example of an URL for a product on the OneDirect website: {0}
-
+You MUST respond in {3}, meaning the content should be written entirely in that language.
 You are an experienced SEO copywriter working for the {3} website, specialized in tech and telecom products. Your goal is to deliver a clear, persuasive product description using simple HTML tags only: <h2>, <p>, <strong>, <em>, <ul>, <li>, <table>, <tr>, <td>.
 
-You must write in {3} and follow the latest European spelling and punctuation conventions for that language. Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
+You MUST write in {3}.
+Follow the latest European spelling and punctuation conventions for that language.
+Use short sentences, active voice, and aim for a high Flesch Reading Ease score. Never mention any brand other than the product’s own or the name of the shop.
 
-The product information is available in the following JSON: {1}.
-The product name is: {2}.
+The product information is available in the following JSON: {1}
+The product name is: {2}
 
-Please generate:
+Please generate the following, as a valid JSON object with properly escaped quotes (\\") and Do not include raw line breaks in JSON strings. Keep all HTML content on a single line.:
 
-1. **A short product name** (max 60 characters)
-2. **A baseline** placed inside <h2> tags
-3. **A product description** following this HTML outline:
-    Include a H3 for each part
-   Product Overview part 
-   ↳ Several sentences introducing the product’s main value inside <p> tags.
+1. name — a short version of the product name (max 60 characters)
 
-   Key Benefits part 
-   ↳ A <ul> with exactly 5 <li> items.
-   ↳ Each <li> starts with a <strong>concise benefit phrase</strong>, followed by a short supporting sentence.
+2. baseline — a catchy sentence 
 
-   Features & Use Cases part 
-   ↳ A few <p> paragraphs describing real-world usage and advantages.
+3. features — a <ul> with exactly 5 <li> items.
+   Each <li> starts with a <strong>concise benefit</strong> followed by a short explanation.
+   This will be used as the short description.
 
-   Technical Details part 
-   ↳ A <table> with 2 columns and up to 8 rows.
-   ↳ Column 1 = spec label, Column 2 = value (choose relevant specs like Dimensions, Weight, Battery, Connectivity...).
+4. description — a full HTML product description structured into flowing <p>, <ul>, <table> blocks. Include <strong> for keypoint of the desciption (but **without any section titles like <h3>**) Include:
+   - A short title <H3> including the name of the product
+   - A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)
+   - A longer and more detailed version of the 5 benefits from the "features" section, expanded as natural text.(detail each point of the features)
+   - Real-world usage examples and advantages. (A few <p> paragraphs describing real-world usage and advantages.)
+   - A <table> with up to 8 relevant technical details (2 columns: label and value).
+   - A persuasive final call-to-action.
 
-   Order Now part 
-   ↳ A persuasive <p> call-to-action.
+5. weight — extracted from the product data, if available
 
-4. **Escaped quotes** for valid JSON (use \\\" instead of ")
+6. width — extracted if available
 
-5. **Key dimensions**: extract package weight, width, depth, and height from the product info (if unavailable, leave blank).
+7. height — extracted if available
 
-Return the final result as a valid JSON object with the following fields:
-- name
-- baseline
-- description
-- features (the <ul> block only)
-- weight
-- width
-- height
-- depth
+8. depth — extracted if available
 
-If any error occurs, return an empty JSON.
+If the model fails to understand the request or data is missing, return an empty JSON.
 """
+
     openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY )
     if not openai_key:
         st.error("Clé API OpenAI non configurée.")
@@ -217,7 +219,8 @@ If any error occurs, return an empty JSON.
             messages=[
                 {
                     "role": "user",
-                    "content": ai_prompt.format(url, infos, title, urlparse(url).hostname)
+                    "content": ai_prompt.format(url, infos, title, language_label),
+                    "token_max": 6000
                 }
             ]
         )
@@ -503,16 +506,38 @@ def process_file(file, selected_outputs):
             gtin_list = api_data["data"]["GeneralInfo"].get("GTIN", [])
             gtin = gtin_list[0] if gtin_list else ""
 
-            # Data for missing content
+            # Mapping des durées de garantie vers leurs IDs
+            warranty_mapping = {
+                "1 year": 575,
+                "2 years": 576,
+                "3 years": 577,
+                "4 years": 578,
+                "5 years": 579,
+                "6 years": 580,
+                "7 years": 14639,
+                "8 years": 581,
+                "10 years": 582,
+                "12 years": 583,
+                "for life": 584,
+                "3 months": 13983,
+               "6 months": 13982
+            }
+
+            # Extraction de la valeur d'entrée
+            warranty_value = row.get("onedirect_warranty_time", "")
+            warranty_id = warranty_mapping.get(warranty_value, "")
+
+            # Données pour contenu manquant
             missing_content_row = {
                 "sku": row["sku"],
-                "onedirect_ref_fournisseur": row.get("PanNumber", ""),
-                "onedirect_ean": gtin,
-                "onedirect_warranty_time": row.get("onedirect_warranty_time", ""),
+                # "onedirect_ref_fournisseur": row.get("PanNumber", ""),
+                # "onedirect_ean": gtin,
+                "onedirect_warranty_time": warranty_id,
                 "store_id": row["Store"]
             }
             if "Missing content" in selected_outputs:
                 writers[country]["missing"].writerow(missing_content_row)
+
 
             # Write status and price information
             writers[country]["status"].writerow({
