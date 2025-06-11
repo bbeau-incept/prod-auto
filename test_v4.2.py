@@ -809,8 +809,8 @@ def page_openai_translation():
                         try:
                             response = client.chat.completions.create(
                                 model="gpt-4o-mini",
-                                temperature="0.2",
-                                max_tokens="2048",
+                                temperature=0.2,
+                                max_tokens=2048,
                                 messages=[{"role": "user", "content": prompt}]
                             )
                             translated_text = response.choices[0].message.content.strip()
