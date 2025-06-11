@@ -796,7 +796,7 @@ def page_openai_translation():
             task_count = 0
 
             for col in selected_columns:
-                for country in selected_countries
+                for country in selected_countries :
                     translated_col = f"{col}_translated_{country}"
                     df[translated_col] = ""
 
