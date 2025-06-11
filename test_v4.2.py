@@ -784,7 +784,7 @@ def page_openai_translation():
         
 
         if st.button("🚀 Lancer la traduction"):
-            st.info(f"🧠 Traduction en cours vers : {target_language}")
+            st.info(f"🧠 Traduction en cours")
             openai_key = os.getenv("OPENAI_API_KEY", OPENAI_API_KEY)
             if not openai_key:
                 st.error("❌ Clé API OpenAI manquante")
