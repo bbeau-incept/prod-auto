@@ -771,7 +771,7 @@ def page_openai_translation():
             return
 
         # Sélection de la langue cible
-        country_code = st.selectbox("🌐 Choisissez le pays cible :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
+        selected_countries = st.multiselect("🌐 Choisissez le pays cible :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
         lang_map = {
             "FR": "Tu es un traducteur professionnel, de langue maternelle française, spécialisé dans les traductions vers le français. Tu travailles pour Onedirect, une entreprise spécialisée dans la vente d'outils de télécommunication. Ton objectif est de produire une traduction parfaitement fluide et naturelle pour un lecteur francophone. Voici le texte à traduire (si le texte contient du HTML, conserve exactement la même structure) :",
             "UK": "You are a professional translator, native English speaker, specialized in translations into English. You work for Onedirect, a company specialized in the sale of telecommunications tools. Your goal is to produce a translation that is perfectly fluid and natural for an English-speaking reader. Here is the text to translate (if it contains HTML, keep the exact same structure):",
@@ -781,7 +781,7 @@ def page_openai_translation():
             "DE": "Du bist ein professioneller Übersetzer, deutscher Muttersprachler, spezialisiert auf Übersetzungen ins Deutsche. Du arbeitest für Onedirect, ein auf den Verkauf von Telekommunikationsgeräten spezialisiertes Unternehmen. Dein Ziel ist es, eine perfekt fließende und natürliche Übersetzung für deutschsprachige Leser zu erstellen. Hier ist der zu übersetzende Text (falls HTML enthalten ist, behalte genau dieselbe Struktur bei):",
             "NL": "Je bent een professionele vertaler, moedertaalspreker Nederlands, gespecialiseerd in vertalingen naar het Nederlands. Je werkt voor Onedirect, een bedrijf dat gespecialiseerd is in de verkoop van telecommunicatieapparatuur. Jouw doel is om een perfect vloeiende en natuurlijke vertaling te produceren voor een Nederlandstalige lezer. Hier is de tekst om te vertalen (indien het HTML bevat, behoud exact dezelfde structuur):"
         }
-        target_language = lang_map.get(country_code, "English")
+        target_language = lang_map.get(country, "English")
 
         if st.button("🚀 Lancer la traduction"):
             st.info(f"🧠 Traduction en cours vers : {target_language}")
@@ -796,36 +796,37 @@ def page_openai_translation():
             task_count = 0
 
             for col in selected_columns:
-                translated_col = f"{col}_translated_{country_code}"
-                df[translated_col] = ""
+                for country in selected_countries
+                    translated_col = f"{col}_translated_{country}"
+                    df[translated_col] = ""
 
-                for i in range(len(df)):
-                    original_text = str(df.at[i, col])
+                    for i in range(len(df)):
+                        original_text = str(df.at[i, col])
 
-                    prompt = f"{target_language}:\n\n{original_text}"
-                    try:
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=[{"role": "user", "content": prompt}]
-                        )
-                        translated_text = response.choices[0].message.content.strip()
-                    except Exception as e:
-                        translated_text = f"[Erreur OpenAI] {e}"
+                        prompt = f"{target_language}:\n\n{original_text}"
+                        try:
+                            response = client.chat.completions.create(
+                                model="gpt-4o-mini",
+                                messages=[{"role": "user", "content": prompt}]
+                            )
+                            translated_text = response.choices[0].message.content.strip()
+                        except Exception as e:
+                            translated_text = f"[Erreur OpenAI] {e}"
 
-                    df.at[i, translated_col] = translated_text
-                    task_count += 1
-                    progress.progress(task_count / total_tasks)
+                        df.at[i, translated_col] = translated_text
+                        task_count += 1
+                        progress.progress(task_count / total_tasks)
 
-            st.success("✅ Traduction terminée")
-            st.dataframe(df.head())
+                st.success("✅ Traduction terminée")
+                st.dataframe(df.head())
 
-            csv = df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="📥 Télécharger le fichier traduit",
-                data=csv,
-                file_name=f"traduction_multicolonne_{country_code}.csv",
-                mime="text/csv"
-            )
+                csv = df.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    label="📥 Télécharger le fichier traduit",
+                    data=csv,
+                    file_name=f"traduction_multicolonne_{country}.csv",
+                    mime="text/csv"
+                )
 
 
 
