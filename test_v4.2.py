@@ -795,9 +795,8 @@ def page_openai_translation():
             total_tasks = len(df) * (len(selected_columns) * len(selected_countries))
             progress = st.progress(0)
             task_count = 0
-
-            for col in selected_columns:
-                for country in selected_countries :
+            for country in selected_countries :
+                for col in selected_columns:
                     target_language = lang_map.get(country, "English")
                     translated_col = f"{col}_translated_{country}"
                     df[translated_col] = ""
