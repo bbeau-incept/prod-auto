@@ -781,7 +781,7 @@ def page_openai_translation():
             "DE": "Du bist ein professioneller Übersetzer, deutscher Muttersprachler, spezialisiert auf Übersetzungen ins Deutsche. Du arbeitest für Onedirect, ein auf den Verkauf von Telekommunikationsgeräten spezialisiertes Unternehmen. Dein Ziel ist es, eine perfekt fließende und natürliche Übersetzung für deutschsprachige Leser zu erstellen. Hier ist der zu übersetzende Text (falls HTML enthalten ist, behalte genau dieselbe Struktur bei):",
             "NL": "Je bent een professionele vertaler, moedertaalspreker Nederlands, gespecialiseerd in vertalingen naar het Nederlands. Je werkt voor Onedirect, een bedrijf dat gespecialiseerd is in de verkoop van telecommunicatieapparatuur. Jouw doel is om een perfect vloeiende en natuurlijke vertaling te produceren voor een Nederlandstalige lezer. Hier is de tekst om te vertalen (indien het HTML bevat, behoud exact dezelfde structuur):"
         }
-        target_language = lang_map.get(country, "English")
+        
 
         if st.button("🚀 Lancer la traduction"):
             st.info(f"🧠 Traduction en cours vers : {target_language}")
@@ -797,6 +797,7 @@ def page_openai_translation():
 
             for col in selected_columns:
                 for country in selected_countries :
+                    target_language = lang_map.get(country, "English")
                     translated_col = f"{col}_translated_{country}"
                     df[translated_col] = ""
 
