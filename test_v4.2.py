@@ -804,7 +804,7 @@ def page_openai_translation():
                     for i in range(len(df)):
                         original_text = str(df.at[i, col])
 
-                        prompt = f"{target_language}:\n\n{original_text}"
+                        prompt = f"{target_language}:\n{original_text} \n\n If bold use <strong>"
                         try:
                             response = client.chat.completions.create(
                                 model="gpt-4o-mini",
