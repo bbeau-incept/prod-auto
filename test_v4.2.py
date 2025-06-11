@@ -791,7 +791,7 @@ def page_openai_translation():
                 return
 
             client = OpenAI(api_key=openai_key)
-            total_tasks = len(df) * len(selected_columns)
+            total_tasks = len(df) * (len(selected_columns) * len(selected_countries))
             progress = st.progress(0)
             task_count = 0
 
