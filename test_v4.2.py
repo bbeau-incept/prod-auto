@@ -818,16 +818,16 @@ def page_openai_translation():
                         task_count += 1
                         progress.progress(task_count / total_tasks)
 
-                st.success("✅ Traduction terminée")
-                st.dataframe(df.head())
+            st.success("✅ Traduction terminée")
+            st.dataframe(df.head())
 
-                csv = df.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label="📥 Télécharger le fichier traduit",
-                    data=csv,
-                    file_name=f"traduction_multicolonne_{country}.csv",
-                    mime="text/csv"
-                )
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Télécharger le fichier traduit",
+                data=csv,
+                file_name=f"traduction_multicolonne_{country}.csv",
+                mime="text/csv"
+            )
 
 
 
