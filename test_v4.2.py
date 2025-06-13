@@ -115,16 +115,18 @@ def fetch_product_data(row):
 
 def sanitize_broken_json_string(content):
     """Nettoie un JSON sous forme de string contenant des erreurs classiques dans les valeurs."""
-    
+        
     content = content.strip().replace("```json", "").replace("```", "")
-    content = content.replace("“", '"').replace("”", '"')  # guillemets typographiques
+    content = content.replace("“", "''").replace("”", "''")  # guillemets typographiques
 
     # Match tous les champs de type "clé": "valeur" (même sur plusieurs lignes), avec une tolérance au contenu foireux
     def fix_quoted_values(match):
         key = match.group(1)
         raw_val = match.group(2)
         # échappe les guillemets internes mal échappés
-        fixed_val = re.sub(r'(?<!\\)"', r'\\"', raw_val)
+        fixed_val = re.sub(r'(?<!\\)"', r"''", raw_val)
+        fixed_val = raw_val.replace('\\"', "''")
+        fixed_val = re.sub(r'(?<!\\)"', "''", fixed_val)
         return f'"{key}": "{fixed_val}"'
 
     # Expression régulière pour capturer chaque paire clé:valeur textuelle

@@ -21,3 +21,12 @@ rad.json
 #Test results file
 TestResults.xml
 .env
+
+# Ne pas suivre les secrets Streamlit
+.streamlit/secrets.toml
+
+# Ne pas suivre les dossiers générés automatiquement
+output_folder_*/
+
+# Ne pas suivre les fichiers zip
+*.zip
