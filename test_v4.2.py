@@ -448,7 +448,7 @@ def process_file(file, selected_outputs):
             )
             if "OpenAI content" in selected_outputs:
                 with st.status("🤖 Génération de contenu OpenAI...", expanded=False) as status_openai:
-                    ai_data = generate_openai_content(api_data, row, url)
+                    ai_data = generate_openai_content(api_data, row, url, output_dir)
                     if not ai_data:
                         st.warning(f"⚠️ OpenAI a échoué pour {row['sku']}")
                         status_openai.update(label="❌ OpenAI échoué", state="error")
@@ -603,7 +603,7 @@ def process_file(file, selected_outputs):
 
             # Finally, process the attributes for this row
             if "Attributes" in selected_outputs:
-                process_attributes(row, gtin, country)
+                process_attributes(row, gtin, country, attribute_base_dir, today)
     if "Images" in selected_outputs:
 
         with st.status("📸 Traitement et compression des images...", expanded=False) as status_img:
@@ -644,7 +644,7 @@ def main():
     elif page == "Traduction en batch OpenAI":
         page_openai_translation()
         
-def page_creation_imports(output_dir):
+def page_creation_imports():
     st.title("📦 Création des imports")
     
     uploaded_file = st.file_uploader("📂 Chargez un fichier CSV de produits", type="csv")
@@ -660,9 +660,8 @@ def page_creation_imports(output_dir):
             default=["Missing content", "OpenAI content", "Price", "Processed", "Status", "Attributes", "Images"]
         )
 
-        # Bouton de lancement du traitement
         if st.button("🚀 Lancer le traitement"):
-            process_file(uploaded_file, selected_outputs)
+            output_dir = process_file(uploaded_file, selected_outputs)
 
             for writer_info in writers.values():
                 for file in writer_info["files"]:
