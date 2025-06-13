@@ -30,3 +30,5 @@ output_folder_*/
 
 # Ne pas suivre les fichiers zip
 *.zip
+
+test_hihi.py
