@@ -30,11 +30,14 @@ def get_output_folder(base_name):
         
         
 # Initialisation
-today = date.today().isoformat()
-output_base_dir = "output_folder"
-output_dir = get_output_folder(output_base_dir)
-attribute_base_dir = os.path.join(output_dir, "attributes")
-os.makedirs(attribute_base_dir, exist_ok=True)
+def create_folder():
+    today = date.today().isoformat()
+    output_base_dir = "output_folder"
+    output_dir = get_output_folder(output_base_dir)
+    attribute_base_dir = os.path.join(output_dir, "attributes")
+    os.makedirs(attribute_base_dir, exist_ok=True)
+
+    return today, output_base_dir, output_dir, attribute_base_dir
 
 load_dotenv()
 
@@ -413,8 +416,9 @@ def process_images(df):
 
     
     
-def process_file(file, selected_outputs):
+def process_file(file, selected_outputs,):
     """Process the uploaded CSV file and generate outputs."""
+    today, output_base_dir, output_dir, attribute_base_dir = create_folder()
     df = pd.read_csv(file)
     total = len(df)
     progress_bar = st.progress(0)
@@ -613,7 +617,7 @@ def process_file(file, selected_outputs):
 
 
 
-def download_zip():
+def download_zip(output_dir):
     """Create and download a ZIP file of the output directory."""
     # Make sure all attribute CSV files are closed
     close_attribute_writers()
