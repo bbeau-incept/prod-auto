@@ -29,21 +29,22 @@ def get_output_folder(base_name):
         version += 1
         
         
-# Initialisation
-today = date.today().isoformat()
-output_base_dir = "output_folder"
-output_dir = get_output_folder(output_base_dir)
-attribute_base_dir = os.path.join(output_dir, "attributes")
-os.makedirs(attribute_base_dir, exist_ok=True)
+def initialize_paths():
+    today = date.today().isoformat()
+    output_base_dir = "output_folder"
+    output_dir = get_output_folder(output_base_dir)
+    attribute_base_dir = os.path.join(output_dir, "attributes")
+    os.makedirs(attribute_base_dir, exist_ok=True)
+
+    images_zip_path = os.path.join(output_dir, "all_images.zip")
+    images_csv_path = os.path.join(output_dir, "structured_images.csv")
+    image_data = []
+
+    return today, output_dir, attribute_base_dir, images_zip_path, images_csv_path, image_data
+
 
 load_dotenv()
-
-
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-
-images_zip_path = os.path.join(output_dir, "all_images.zip")
-images_csv_path = os.path.join(output_dir, "structured_images.csv")
-image_data = []
 
 languages = {
     2: "en",
@@ -82,7 +83,6 @@ fieldnames_standard = ["GTIN", "PanNumber", "Brand", "sku", "store_id", "od_line
 writers = {}
 unique_skus = set()
 attribute_writers = {}
-consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product_list.csv")
 
 
 def fetch_product_data(row):
@@ -149,7 +149,7 @@ def extract_images(data):
     return images
 
 
-def generate_openai_content(api_data, row, url):
+def generate_openai_content(api_data, row, url, output_dir):
     languages_for_prompt = { 
         2: "en - English",
         3: "fr - Français",
@@ -288,7 +288,7 @@ def get_attribute_writer(attribute_dir, attribute_file_path, fieldnames):
     return attribute_writers[attribute_file_path]["writer"]
 
 
-def process_attributes(row, gtin, country):
+def process_attributes(row, gtin, country, attribute_base_dir, today):
     """Process and write attribute data for a specific row."""
     attribut_set = row.get("attribut_set")
     if not attribut_set:
@@ -357,7 +357,7 @@ def download_and_process_image(sku, img_url, index):
         return {"success": False, "error": str(e), "index": index}
     
 
-def process_images(df):
+def process_images(df, images_zip_path, images_csv_path, image_data):
     st.info("📸 Début du traitement des images...")
     total_rows = len(df)
     progress_bar = st.progress(0)
@@ -415,6 +415,8 @@ def process_images(df):
     
 def process_file(file, selected_outputs):
     """Process the uploaded CSV file and generate outputs."""
+    today, output_dir, attribute_base_dir, images_zip_path, images_csv_path, image_data = initialize_paths()
+    consolidated_file_path = os.path.join(output_dir, f"{today}_consolidated_product_list.csv")
     df = pd.read_csv(file)
     total = len(df)
     progress_bar = st.progress(0)
@@ -446,7 +448,7 @@ def process_file(file, selected_outputs):
             )
             if "OpenAI content" in selected_outputs:
                 with st.status("🤖 Génération de contenu OpenAI...", expanded=False) as status_openai:
-                    ai_data = generate_openai_content(api_data, row, url)
+                    ai_data = generate_openai_content(api_data, row, url, output_dir)
                     if not ai_data:
                         st.warning(f"⚠️ OpenAI a échoué pour {row['sku']}")
                         status_openai.update(label="❌ OpenAI échoué", state="error")
@@ -601,19 +603,19 @@ def process_file(file, selected_outputs):
 
             # Finally, process the attributes for this row
             if "Attributes" in selected_outputs:
-                process_attributes(row, gtin, country)
+                process_attributes(row, gtin, country, attribute_base_dir, today)
     if "Images" in selected_outputs:
 
         with st.status("📸 Traitement et compression des images...", expanded=False) as status_img:
-            process_images(pd.read_csv(consolidated_file_path))
+            process_images(pd.read_csv(consolidated_file_path), images_zip_path, images_csv_path, image_data)
             status_img.update(label="✅ Images traitées et compressées", state="complete")
     # Now handle all images together from the consolidated file
+    return output_dir
 
 
 
 
-
-def download_zip():
+def download_zip(output_dir):
     """Create and download a ZIP file of the output directory."""
     # Make sure all attribute CSV files are closed
     close_attribute_writers()
@@ -658,16 +660,15 @@ def page_creation_imports():
             default=["Missing content", "OpenAI content", "Price", "Processed", "Status", "Attributes", "Images"]
         )
 
-        # Bouton de lancement du traitement
         if st.button("🚀 Lancer le traitement"):
-            process_file(uploaded_file, selected_outputs)
+            output_dir = process_file(uploaded_file, selected_outputs)
 
             for writer_info in writers.values():
                 for file in writer_info["files"]:
                     file.close()
 
             st.success("✅ Traitement terminé. Fichiers générés avec succès.")
-            download_zip()
+            download_zip(output_dir)
             
 def page_test_icecat():
     st.title("🧪 Test de présence des produits dans Icecat")
@@ -775,14 +776,16 @@ def page_openai_translation():
         # Sélection de la langue cible
         selected_countries = st.multiselect("🌐 Choisissez le pays cible :", ["FR", "UK", "ES", "PT", "IT", "DE", "NL"])
         lang_map = {
-            "FR": "Vous êtes un traducteur professionnel, de langue maternelle française, spécialisé dans les contenus de télécommunications. Vous traduisez pour Onedirect, une entreprise spécialisée dans les solutions professionnelles de communication et de téléphonie. Votre objectif est d'assurer l'exactitude du sens et de la terminologie, puis de garantir une fluidité, une fidélité au ton, et une pertinence commerciale. Conservez toute la mise en forme du texte original (titres, listes à puces, retours à la ligne, balises HTML/Markdown, gras, italique, etc.). N’interprétez pas et ne modifiez pas la syntaxe de formatage (comme Markdown ou HTML). Retournez le texte traduit tel quel, avec tous les caractères de formatage exactement comme dans le texte d'origine. Si une partie du texte est ambiguë, traduisez-la de manière contextuellement appropriée sans inventer d'information. Retournez uniquement le texte final traduit, sans explication, commentaire ni texte source. Veuillez traduire le texte suivant :\n",
-            "UK": "You are a professional translator and native English speaker specializing in telecommunications content. You are translating on behalf of Onedirect, a company that sells business communication and telephony solutions. Your primary goal is to ensure accuracy in meaning and terminology. Then, focus on fluency, tone fidelity, and commercial suitability. Preserve all formatting exactly as in the source text, including headings, bullet points, line breaks, HTML/Markdown tags, and typographic emphasis (bold, italic, etc.). Do not interpret, modify, or convert any formatting syntax (such as Markdown or HTML). Return the translated text as raw plain text, with all formatting characters (like **, ##, *, <br>, etc.) preserved exactly as they appear in the original. If any part of the source text is unclear or ambiguous, translate it in the most contextually appropriate way without inventing information. Output only the final translated text, without explanations, comments, or source text. Please translate the following text:\n",
-            "ES": "Eres un traductor profesional, hispanohablante nativo, especializado en contenidos sobre telecomunicaciones. Traduces para Onedirect, una empresa que ofrece soluciones profesionales en comunicación empresarial y telefonía. Tu objetivo es garantizar la precisión del significado y la terminología, seguido de fluidez, fidelidad al tono y adecuación comercial. Mantén el formato original (títulos, viñetas, saltos de línea, etiquetas HTML/Markdown, negrita, cursiva, etc.). No interpretes, modifiques ni conviertas ninguna sintaxis de formato (como Markdown o HTML). Devuelve el texto traducido como texto sin formato, preservando todos los caracteres de formato tal como aparecen en el original. Si el texto es ambiguo, elige la traducción más adecuada según el contexto, sin inventar información. Devuelve solo el texto final traducido, sin explicaciones, comentarios ni texto original. Traduce el siguiente texto:\n",
-            "PT": "És um tradutor profissional, falante nativo de português europeu, especializado em conteúdos de telecomunicações. Estás a traduzir em nome da Onedirect, uma empresa que vende soluções empresariais de comunicação e telefonia. O teu objetivo é garantir a precisão do significado e da terminologia, seguido de fluidez, fidelidade ao tom e adequação comercial. Mantém toda a formatação do texto original (títulos, listas, quebras de linha, etiquetas HTML/Markdown, negrito, itálico, etc.). Não interpretes, modifiques nem convertas qualquer sintaxe de formatação (como Markdown ou HTML). Devolve o texto traduzido como texto simples, preservando todos os caracteres de formatação exatamente como no original. Em caso de ambiguidade, escolhe a tradução mais adequada ao contexto, sem inventar informações. Devolve apenas o texto final traduzido, sem explicações, comentários ou texto original. Traduz o seguinte texto:\n",
-            "IT": "Sei un traduttore professionista, madrelingua italiano, specializzato in contenuti relativi alle telecomunicazioni. Traduci per conto di Onedirect, un'azienda che vende soluzioni professionali per comunicazione aziendale e telefonia. Il tuo obiettivo è garantire l'accuratezza del significato e della terminologia, poi la fluidità, la coerenza di tono e l'idoneità commerciale. Conserva tutta la formattazione originale (titoli, elenchi, ritorni a capo, tag HTML/Markdown, grassetto, corsivo, ecc.). Non interpretare, modificare o convertire alcuna sintassi di formattazione (come Markdown o HTML). Restituisci il testo tradotto come testo semplice, mantenendo tutti i caratteri di formattazione esattamente come nel testo originale. In caso di ambiguità, scegli la traduzione più appropriata al contesto senza inventare informazioni. Restituisci solo il testo finale tradotto, senza spiegazioni, commenti o testo di partenza. Traduci il seguente testo:\n",
-            "DE": "Du bist ein professioneller Übersetzer und deutscher Muttersprachler mit Spezialisierung auf Telekommunikationsinhalte. Du übersetzt im Auftrag von Onedirect, einem Unternehmen, das professionelle Lösungen für Geschäftskommunikation und Telefonie anbietet. Dein Ziel ist es, die Genauigkeit von Bedeutung und Terminologie sicherzustellen, gefolgt von Flüssigkeit, Tonalität und kommerzieller Eignung. Erhalte das gesamte ursprüngliche Format (Überschriften, Aufzählungen, Zeilenumbrüche, HTML/Markdown-Tags, Fettdruck, Kursivschrift usw.). Interpretiere, verändere oder konvertiere keine Formatierungssyntax (wie Markdown oder HTML). Gib den übersetzten Text als einfachen Klartext zurück und bewahre alle Formatierungszeichen genau wie im Original auf. Bei Unklarheiten übersetze im sinnvollsten Kontext ohne Informationen zu erfinden. Gib ausschließlich den endgültig übersetzten Text zurück, ohne Erklärungen, Kommentare oder Originaltext. Übersetze den folgenden Text:\n",
-            "NL": "Je bent een professionele vertaler en moedertaalspreker Nederlands, gespecialiseerd in telecomgerelateerde inhoud. Je vertaalt namens Onedirect, een bedrijf dat professionele communicatie- en telefonieoplossingen voor bedrijven verkoopt. Jouw doel is om de betekenis en terminologie nauwkeurig over te brengen, gevolgd door vloeiendheid, toonvastheid en commerciële geschiktheid. Behoud alle oorspronkelijke opmaak (koppen, opsommingstekens, regeleinden, HTML/Markdown-tags, vet, cursief, enz.). Interpreteer, wijzig of converteer geen enkele opmaaksyntax (zoals Markdown of HTML). Geef de vertaalde tekst als gewone platte tekst terug met alle opmaaktekens exact zoals in de originele tekst. Kies bij onduidelijkheid voor de meest contextueel passende vertaling zonder informatie te verzinnen. Geef alleen de definitieve vertaalde tekst terug, zonder uitleg, opmerkingen of brontekst. Vertaal de volgende tekst:\n"
+            "FR": "Vous êtes un traducteur professionnel, de langue maternelle française, spécialisé dans les contenus de télécommunications. Vous traduisez pour Onedirect, une entreprise spécialisée dans les solutions professionnelles de communication et de téléphonie. Votre objectif est de fournir une traduction :\n\n- 100  fidèle au sens et à la terminologie d'origine,\n- Fluide et naturelle pour un lecteur francophone natif,\n- Fidèle au ton et à la structure du texte original,\n- Adaptée à une utilisation commerciale et professionnelle.\n\nVeuillez traduire le texte suivant en français naturel et idiomatique. Conservez le formatage (titres, puces, gras, etc.) et n'ajoutez aucun commentaire.\n\nRetournez uniquement le texte traduit en français.",
+            "UK": "You are a professional translator and native English speaker specializing in telecommunications content. You are translating on behalf of Onedirect, a company that sells business communication and telephony solutions. Your goal is to provide a translation that is:\n\n- 100 accurate in meaning and terminology,\n- Fluent and natural for native English readers,\n- Faithful to the tone and structure of the original,\n- Suitable for commercial and professional use.\n\nPlease translate the following text into natural, idiomatic English. Keep formatting (headings, bullets, bold, etc.) and do not add any commentary.\n\nReturn only the translated English text.",
+            "ES": "Eres un traductor profesional, hispanohablante nativo, especializado en contenidos sobre telecomunicaciones. Traduces para Onedirect, una empresa que ofrece soluciones profesionales en comunicación empresarial y telefonía. Tu objetivo es proporcionar una traducción que sea:\n\n- 100 % precisa en cuanto a significado y terminología,\n- Fluida y natural para lectores hispanohablantes nativos,\n- Fiel al tono y estructura del texto original,\n- Adecuada para un uso comercial y profesional.\n\nPor favor, traduce el siguiente texto a un español natural e idiomático. Mantén el formato original (títulos, viñetas, negrita, etc.) y no añadas ningún comentario.\n\nDevuelve únicamente el texto traducido en español, siguiendo estrictamente las normas y el vocabulario del español europeo.",
+            "PT": "És um tradutor profissional, falante nativo de português europeu, especializado em conteúdos de telecomunicações. Estás a traduzir em nome da Onedirect, uma empresa que vende soluções empresariais de comunicação e telefonia. O teu objetivo é fornecer uma tradução:\n\n- 100% precisa no significado e na terminologia,\n- Fluida e natural para leitores nativos de português europeu,\n- Fiel ao tom e à estrutura do texto original,\n- Adequada para uso comercial e profissional.\n\nPor favor, traduz o seguinte texto para um português natural e idiomático. Mantém a formatação original (títulos, pontos, negritos, etc.) e não acrescentes comentários.\n\nDevolve apenas o texto traduzido em português, seguindo rigorosamente as regras e o vocabulário do português europeu.",
+            "IT": "Sei un traduttore professionista, madrelingua italiano, specializzato in contenuti relativi alle telecomunicazioni. Traduci per conto di Onedirect, un'azienda che vende soluzioni professionali per comunicazione aziendale e telefonia. Il tuo obiettivo è fornire una traduzione:\n\n- Precisa al 100% nel significato e nella terminologia,\n- Fluida e naturale per lettori madrelingua italiani,\n- Fedele al tono e alla struttura del testo originale,\n- Adatta per uso commerciale e professionale.\n\nTraduci il seguente testo in italiano naturale e idiomatico. Conserva la formattazione originale (titoli, elenchi puntati, grassetto, ecc.) e non aggiungere alcun commento.\n\nRestituisci solo il testo tradotto in italiano.",
+            "DE": "Du bist ein professioneller Übersetzer und deutscher Muttersprachler mit Spezialisierung auf Telekommunikationsinhalte. Du übersetzt im Auftrag von Onedirect, einem Unternehmen, das professionelle Lösungen für Geschäftskommunikation und Telefonie anbietet. Dein Ziel ist es, eine Übersetzung zu liefern, die:\n\n- Zu 100  genau in Bedeutung und Terminologie ist,\n- Flüssig und natürlich für deutschsprachige Muttersprachler klingt,\n- Dem Ton und der Struktur des Originaltexts treu bleibt,\n- Für kommerzielle und professionelle Nutzung geeignet ist.\n\nBitte übersetze den folgenden Text in natürliches, idiomatisches Deutsch. Behalte die Originalformatierung (Überschriften, Aufzählungen, Fettdruck usw.) bei und füge keine Kommentare hinzu.\n\nGib ausschließlich den übersetzten deutschen Text zurück.",
+            "NL": "Je bent een professionele vertaler en moedertaalspreker Nederlands, gespecialiseerd in telecomgerelateerde inhoud. Je vertaalt namens Onedirect, een bedrijf dat professionele communicatie- en telefonieoplossingen voor bedrijven verkoopt. Jouw doel is een vertaling te leveren die:\n\n- 100% nauwkeurig is qua betekenis en terminologie,\n- Vloeiend en natuurlijk klinkt voor Nederlandstalige lezers,\n- De toon en structuur van de originele tekst trouw volgt,\n- Geschikt is voor commercieel en professioneel gebruik.\n\nVertaal de volgende tekst naar natuurlijk en idiomatisch Nederlands. Behoud de originele opmaak (koppen, opsommingstekens, vetgedrukt, enz.) en voeg geen commentaar toe.\n\nStuur alleen de vertaalde Nederlandse tekst terug."
         }
+
+        
 
         if st.button("🚀 Lancer la traduction"):
             st.info(f"🧠 Traduction en cours")
@@ -804,7 +807,7 @@ def page_openai_translation():
                     for i in range(len(df)):
                         original_text = str(df.at[i, col])
 
-                        prompt = f"{target_language}:\n{original_text}"
+                        prompt = f"{target_language}:\n{original_text} \n\n If bold use <strong>"
                         try:
                             response = client.chat.completions.create(
                                 model="gpt-4o-mini",
