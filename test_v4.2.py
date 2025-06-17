@@ -798,12 +798,13 @@ def page_openai_translation():
             total_tasks = len(df) * (len(selected_columns) * len(selected_countries))
             progress = st.progress(0)
             task_count = 0
+            list_translated_columns = []
             for country in selected_countries :
                 for col in selected_columns:
                     target_language = lang_map.get(country, "English")
                     translated_col = f"{col}_translated_{country}"
+                    list_translated_columns.append(translated_col)
                     df[translated_col] = ""
-
                     for i in range(len(df)):
                         original_text = str(df.at[i, col])
 
@@ -821,16 +822,24 @@ def page_openai_translation():
 
                         df.at[i, translated_col] = translated_text
                         task_count += 1
+                        
                         progress.progress(task_count / total_tasks)
 
             st.success("✅ Traduction terminée")
             st.dataframe(df.head())
+            
+            
+            column_to_keep = []
+            frist_column_name = df.columns[0]
+            column_to_keep.append(frist_column_name)
+            column_to_keep.extend(selected_columns)
+            column_to_keep.extend(list_translated_columns)
 
-            csv = df.to_csv(index=False).encode("utf-8")
+            csv = df[column_to_keep].to_csv(index=False).encode("utf-8")
             st.download_button(
                 label="📥 Télécharger le fichier traduit",
                 data=csv,
-                file_name=f"traduction_multicolonne_{country}.csv",
+                file_name=f"traduction_multicolonne_{selected_countries}.csv",
                 mime="text/csv"
             )
 
