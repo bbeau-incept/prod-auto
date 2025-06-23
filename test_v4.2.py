@@ -549,11 +549,15 @@ def process_file(file, selected_outputs):
                 "store_id": row["Store"],
                 "status": 2
             })
+            special_price = row.get("special_price")
+            if not special_price or str(special_price).strip() == "" or str(special_price).strip() == "nan":
+                special_price = "NULL"
+
             writers[country]["price"].writerow({
                 "sku": row["sku"],
                 "website_id": row["Store"],
                 "price": row.get("Price"),
-                "special_price": row.get("special_price")
+                "special_price": special_price
             })
 
             # Write processed file information
