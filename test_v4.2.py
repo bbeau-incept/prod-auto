@@ -175,21 +175,19 @@ The product name is: {2}
 
 Please generate the following, as a valid JSON object with properly escaped quotes (\\") and Do not include raw line breaks in JSON strings. Keep all HTML content on a single line.:
 
-1. name — a short version of the product name (max 60 characters)
+1. name — strictly the product name
 
-2. baseline — a catchy sentence 
+2. baseline — a catchy sentence with the benefit of the product and two or three strong points
 
-3. features — a <ul> with exactly 5 <li> items.
-   Each <li> starts with a <strong>concise benefit</strong> followed by a short explanation.
-   This will be used as the short description.
-
-4. description — a full HTML product description structured into flowing <p>, <ul>, <table> blocks. Include <strong> for keypoint of the desciption (but **without any section titles like <h3>**) Include:
-   - A short title <H3> including the name of the product
-   - A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)
-   - A longer and more detailed version of the 5 benefits from the "features" section, expanded as natural text.(detail each point of the features)
-   - Real-world usage examples and advantages. (A few <p> paragraphs describing real-world usage and advantages.)
-   - A <table> with up to 8 relevant technical details (2 columns: label and value).
-   - A persuasive final call-to-action.
+3. features — a <ul> up to 8 <li> items. 
+    Each <li> starts with a <strong>precise characteristic</strong> followed by a short explanation.
+    This will be used as the short description.
+   
+4. description — a full HTML product description structured into flowing <p>, <ul>, <table> blocks. Include <strong> for keypoint of the description (but **without any section titles like <h3>**) Include: - A title <H2> with strictly the name of the product   - A short title <H3> including the name of the product
+- A product overview paragraph. (Several sentences introducing the products main value inside <p> tags.)
+- A longer and more detailed version of the main benefits from the "features" section, expanded as natural text.(detail each point of the features). Name this section with a <H3> title. 
+- Real-world usage examples and advantages. (A few <p> paragraphs describing real-world usage and advantages.). Name this section with a <H3> title. 
+- A <table> with up to 15 relevant technical details (2 columns: label and value).
 
 5. weight — extracted from the product data, if available
 
