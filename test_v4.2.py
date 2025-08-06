@@ -583,6 +583,10 @@ def process_file(file, selected_outputs):
                     "visibility": 4,
                 }
                 writers[country]["openai"].writerow(openai_row)
+                if ai_data.get("features", "").startswith("<ul><li>"):
+                    openai_row["short_description"] = ai_data["features"]
+                else:
+                    st.info("Problème avec le SKU :", row["sku"])
 
             # Consolidate product list
             sku = row["sku"]
